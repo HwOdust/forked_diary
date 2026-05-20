@@ -3,13 +3,16 @@ package com.yaho.diary.Controller;
 import com.yaho.diary.Dto.FixedScheduleDto;
 import com.yaho.diary.Entity.FixedSchedule;
 import com.yaho.diary.Repository.FixedScheduleRepository;
-import org.springframework.stereotype.Controller;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
-@Controller
+@RestController
+@RequestMapping("/api/fixed")
 public class FixedScheduleController {
 
     private final FixedScheduleRepository fixedScheduleRepository;
@@ -18,8 +21,8 @@ public class FixedScheduleController {
         this.fixedScheduleRepository = fixedScheduleRepository;
     }
 
-    @PostMapping("/fixed/add")
-    public String addFixed(@ModelAttribute FixedScheduleDto dto) {
+    @PostMapping("/add")
+    public ResponseEntity<Map<String, String>> addFixed(@RequestBody FixedScheduleDto dto) {
         FixedSchedule fs = new FixedSchedule();
         fs.setTitle(dto.getTitle());
         fs.setDayOfWeek(dto.getDayOfWeek());
@@ -30,12 +33,17 @@ public class FixedScheduleController {
             fs.setEndDate(LocalDate.parse(dto.getEndDate()));
         }
         fixedScheduleRepository.save(fs);
-        return "redirect:/timeline";
+
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "고정 일정이 추가되었습니다.");
+        return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/fixed/update/{id}")
-    public String updateFixed(@PathVariable Long id, @ModelAttribute FixedScheduleDto dto) {
+    @PutMapping("/update/{id}")
+    public ResponseEntity<Map<String, String>> updateFixed(@PathVariable Long id, @RequestBody FixedScheduleDto dto) {
+        Map<String, String> response = new HashMap<>();
         Optional<FixedSchedule> found = fixedScheduleRepository.findById(id);
+        
         if (found.isPresent()) {
             FixedSchedule fs = found.get();
             fs.setTitle(dto.getTitle());
@@ -46,13 +54,20 @@ public class FixedScheduleController {
             fs.setEndDate(dto.getEndDate() != null && !dto.getEndDate().isBlank()
                     ? LocalDate.parse(dto.getEndDate()) : null);
             fixedScheduleRepository.save(fs);
+            
+            response.put("message", "고정 일정이 수정되었습니다.");
+            return ResponseEntity.ok(response);
         }
-        return "redirect:/timeline";
+        
+        response.put("message", "해당 고정 일정을 찾을 수 없습니다.");
+        return ResponseEntity.badRequest().body(response);
     }
 
-    @PostMapping("/fixed/delete/{id}")
-    public String deleteFixed(@PathVariable Long id) {
+    @DeleteMapping("/delete/{id}")
+    public ResponseEntity<Map<String, String>> deleteFixed(@PathVariable Long id) {
         fixedScheduleRepository.deleteById(id);
-        return "redirect:/timeline";
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "고정 일정이 삭제되었습니다.");
+        return ResponseEntity.ok(response);
     }
 }
