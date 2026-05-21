@@ -70,6 +70,7 @@ public class ScheduleController {
         
         Long id = Long.valueOf(payload.get("id").toString());
         String title = payload.get("title").toString();
+        String category = payload.getOrDefault("category", "기타").toString(); 
         LocalDate date = LocalDate.parse(payload.get("date").toString());
         LocalTime startTime = LocalTime.parse(payload.get("startTime").toString());
         
@@ -82,6 +83,7 @@ public class ScheduleController {
         if (found.isPresent()) {
             Schedule s = found.get();
             s.setTitle(title);
+            s.setCategory(category);
             s.setDate(date);
             s.setStartTime(startTime);
             s.setEndTime(endTime);
@@ -110,6 +112,7 @@ public class ScheduleController {
         String title = payload.get("title").toString();
         LocalDate date = LocalDate.parse(payload.get("date").toString());
         LocalTime startTime = LocalTime.parse(payload.get("startTime").toString());
+        String category = payload.getOrDefault("category", "기타").toString(); // 이 줄 추가
 
         LocalTime endTime = null;
         if (payload.get("endTime") != null && !payload.get("endTime").toString().isBlank()) {
@@ -121,8 +124,9 @@ public class ScheduleController {
         s.setDate(date);
         s.setStartTime(startTime);
         s.setEndTime(endTime);
-        scheduleRepository.save(s);
+        s.setCategory(category); // 이 줄 추가
 
+        scheduleRepository.save(s);
         response.put("message", "일정이 정상적으로 추가되었습니다.");
         return ResponseEntity.ok(response);
     }
