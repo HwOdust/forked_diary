@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { request } from '../api';
 
-// ✨ 카테고리별 파스텔톤 배경색 고정 매핑
 const categoryColors = {
     '회의': 'bg-pastel-blue',
     '공부': 'bg-pastel-green',
@@ -10,28 +9,29 @@ const categoryColors = {
     '기타': 'bg-pastel-yellow'
 };
 
-
 function Timeline() {
     const [scheduleList, setScheduleList] = useState([]);
     const [fixedList, setFixedList] = useState([]);
     const [aiMessage, setAiMessage] = useState('');
     const [isFixedFormOpen, setIsFixedFormOpen] = useState(false);
 
-    // 수정 모달 상태
     const [modalOpen, setModalOpen] = useState(false);
-    const [selectedEvent, setSelectedEvent] = useState({ id: '', title: '', date: '', startTime: '', endTime: '' });
+    const [selectedEvent, setSelectedEvent] = useState({ id: '', title: '', date: '', startTime: '', endTime: '', category: '기타' });
 
-    // 추가 모달 상태
     const [addModalOpen, setAddModalOpen] = useState(false);
-    const [newEvent, setNewEvent] = useState({ title: '', date: '', startTime: '', endTime: '' });
+    const [newEvent, setNewEvent] = useState({ title: '', date: '', startTime: '', endTime: '', category: '기타' });
 
-    // 시간표 범위 상수 설정 (픽셀 매핑용)
+    // 드래그/리사이즈 상태
+    const dragRef = useRef(null);
+    const wasResizedRef = useRef(false); // 리사이즈 후 클릭 차단용
+    const [draggingId, setDraggingId] = useState(null);
+    const [resizingId, setResizingId] = useState(null);
+    const [ghost, setGhost] = useState(null);
+
     const PX_PER_HOUR = 60;
-
-    const dayMap = [1, 2, 3, 4, 5, 6, 0]; // 월요일부터 일요일순 정렬 매핑
+    const dayMap = [1, 2, 3, 4, 5, 6, 0];
     const dayLabels = ['월', '화', '수', '목', '금', '토', '일'];
 
-    // ✨ 전체 일정 기준으로 시작/종료 시간 동적 계산
     const allTimes = [
         ...scheduleList.map(s => s.startTime),
         ...fixedList.map(f => f.startTime),
@@ -52,7 +52,24 @@ function Timeline() {
 
     useEffect(() => { loadData(); }, []);
 
-    // AI 일정 추가
+    // screenIdx(0=월~6=일) → 이번주 날짜 (기존 코드 방식 그대로)
+    const screenIdxToDateStr = (screenIdx, dayIdx) => {
+        const jsDay = dayIdx; // dayMap[screenIdx] = dayIdx (1=월~6=토, 0=일)
+        const today = new Date();
+        const diff = jsDay - today.getDay();
+        const target = new Date(today);
+        target.setDate(today.getDate() + diff);
+        return target.toISOString().split('T')[0];
+    };
+
+    // px → 시간 문자열 (15분 단위 스냅)
+    const pxToTime = (px) => {
+        const totalMinutes = Math.round((px / PX_PER_HOUR) * 60 / 15) * 15;
+        const h = Math.min(Math.floor(totalMinutes / 60) + startH, 23);
+        const m = totalMinutes % 60;
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    };
+
     const handleAiSubmit = async (e) => {
         e.preventDefault();
         try {
@@ -62,7 +79,6 @@ function Timeline() {
         } catch (err) { alert(err.message); }
     };
 
-    // 일반 일정 수정 저장
     const handleUpdateSchedule = async (e) => {
         e.preventDefault();
         try {
@@ -72,7 +88,6 @@ function Timeline() {
         } catch (err) { alert(err.message); }
     };
 
-    // 일반 일정 삭제
     const handleDeleteSchedule = async () => {
         if (!window.confirm('정말 삭제할까요?')) return;
         try {
@@ -82,9 +97,11 @@ function Timeline() {
         } catch (err) { alert(err.message); }
     };
 
-    // 빈칸 클릭 → 일정 추가 모달
     const handleGridClick = (e, dayIdx, screenIdx) => {
         if (e.target.classList.contains('timetable-event')) return;
+        if (e.target.classList.contains('resize-handle')) return;
+        if (dragRef.current?.didDrag) return;
+        if (wasResizedRef.current) return;
 
         const rect = e.currentTarget.getBoundingClientRect();
         const y = e.clientY - rect.top;
@@ -92,20 +109,18 @@ function Timeline() {
         const clickedTime = `${String(clickedHour).padStart(2, '0')}:00`;
         const endTime = `${String(Math.min(clickedHour + 1, 23)).padStart(2, '0')}:00`;
 
-        // screenIdx: 0=월 ~ 5=토, 6=일 → JS 요일(1=월~6=토, 0=일)로 변환
-        const jsDay = dayIdx+1;
+        // 기존 코드 방식 그대로
+        const jsDay = dayIdx + 1;
         const today = new Date();
-        const todayDay = today.getDay();
-        const diff = jsDay - todayDay;
+        const diff = jsDay - today.getDay();
         const targetDate = new Date(today);
         targetDate.setDate(today.getDate() + diff);
         const dateStr = targetDate.toISOString().split('T')[0];
 
-        setNewEvent({ title: '', date: dateStr, startTime: clickedTime, endTime });
+        setNewEvent({ title: '', date: dateStr, startTime: clickedTime, endTime, category: '기타' });
         setAddModalOpen(true);
     };
 
-    // 일정 추가 저장
     const handleAddSchedule = async (e) => {
         e.preventDefault();
         try {
@@ -115,7 +130,6 @@ function Timeline() {
         } catch (err) { alert(err.message); }
     };
 
-    // 고정 일정 추가
     const handleAddFixed = async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
@@ -127,7 +141,6 @@ function Timeline() {
         } catch (err) { alert(err.message); }
     };
 
-    // 고정 일정 삭제
     const handleDeleteFixed = async (id) => {
         if (!window.confirm('정말 삭제할까요?')) return;
         try {
@@ -136,13 +149,11 @@ function Timeline() {
         } catch (err) { alert(err.message); }
     };
 
-    // 위치 픽셀 계산 유틸 함수
     const getPos = (startTimeStr, endTimeStr) => {
         if (!startTimeStr) return { top: 0, height: 60 };
         const [hh, mm] = startTimeStr.split(':').map(Number);
         const startFloat = hh + mm / 60;
         const top = (startFloat - startH) * PX_PER_HOUR + 1;
-
         let height = PX_PER_HOUR;
         if (endTimeStr) {
             const [eh, em] = endTimeStr.split(':').map(Number);
@@ -152,13 +163,243 @@ function Timeline() {
         return { top: `${top}px`, height: `${height}px` };
     };
 
+    // ── 드래그 이동 ──────────────────────────────────────
+    const handleDragStart = (e, schedule, screenIdx, dayIdx) => {
+        e.stopPropagation();
+        e.preventDefault();
+
+        const rect = e.currentTarget.getBoundingClientRect();
+        const offsetY = e.clientY - rect.top;
+        const bgClass = categoryColors[schedule.category] || 'bg-pastel-green';
+
+        dragRef.current = {
+            type: 'move',
+            id: schedule.id,
+            title: schedule.title,
+            category: schedule.category,
+            startMouseX: e.clientX,
+            startMouseY: e.clientY,
+            offsetY,
+            originalStart: schedule.startTime.substring(0, 5),
+            originalEnd: schedule.endTime ? schedule.endTime.substring(0, 5) : '',
+            originalDate: schedule.date,
+            originalScreenIdx: screenIdx,
+            didDrag: false,
+            bgClass,
+            blockWidth: rect.width,
+            blockHeight: rect.height,
+        };
+        setDraggingId(schedule.id);
+
+        const onMouseMove = (ev) => {
+            if (!dragRef.current) return;
+            const dx = ev.clientX - dragRef.current.startMouseX;
+            const dy = ev.clientY - dragRef.current.startMouseY;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragRef.current.didDrag = true;
+
+            // 고스트 블록 위치 업데이트
+            setGhost({
+                x: ev.clientX - 10,
+                y: ev.clientY - dragRef.current.offsetY,
+                width: dragRef.current.blockWidth,
+                height: dragRef.current.blockHeight,
+                title: dragRef.current.title,
+                bgClass: dragRef.current.bgClass,
+            });
+        };
+
+        const onMouseUp = async (ev) => {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+            setDraggingId(null);
+            setGhost(null);
+
+            const didDrag = dragRef.current?.didDrag;
+            if (!didDrag) { dragRef.current = null; return; }
+
+            // 드래그 후 onClick/handleGridClick 차단 (200ms)
+            wasResizedRef.current = true;
+            setTimeout(() => { wasResizedRef.current = false; }, 200);
+
+            // 드롭된 day-col 찾기 (이번주 내로 제한)
+            const dayCols = document.querySelectorAll('.day-col');
+            let targetScreenIdx = dragRef.current.originalScreenIdx;
+            let targetDayIdx = dayMap[targetScreenIdx];
+            dayCols.forEach((col, i) => {
+                const r = col.getBoundingClientRect();
+                if (ev.clientX >= r.left && ev.clientX <= r.right) {
+                    targetScreenIdx = i;
+                    targetDayIdx = dayMap[i];
+                }
+            });
+
+            // 드롭된 grid y → 시간 계산
+            const gridEls = document.querySelectorAll('.day-grid');
+            const gridEl = gridEls[targetScreenIdx];
+            if (!gridEl) { dragRef.current = null; return; }
+
+            const gridRect = gridEl.getBoundingClientRect();
+            const rawY = ev.clientY - gridRect.top - dragRef.current.offsetY;
+            const clampedY = Math.max(0, rawY);
+            const newStartTime = pxToTime(clampedY);
+
+            // duration 유지해서 종료시간 계산
+            let newEndTime = dragRef.current.originalEnd;
+            if (dragRef.current.originalEnd) {
+                const [sh, sm] = dragRef.current.originalStart.split(':').map(Number);
+                const [eh, em] = dragRef.current.originalEnd.split(':').map(Number);
+                const duration = (eh * 60 + em) - (sh * 60 + sm);
+                const [nsh, nsm] = newStartTime.split(':').map(Number);
+                const totalEnd = nsh * 60 + nsm + duration;
+                const newEH = Math.min(Math.floor(totalEnd / 60), 23);
+                const newEM = totalEnd % 60;
+                newEndTime = `${String(newEH).padStart(2, '0')}:${String(newEM).padStart(2, '0')}`;
+            }
+
+            // 이번주 날짜 계산 (+1 보정)
+            const today = new Date();
+            const diff = (targetDayIdx + 1) - today.getDay();
+            const targetDate = new Date(today);
+            targetDate.setDate(today.getDate() + diff);
+            const newDate = targetDate.toISOString().split('T')[0];
+
+            const payload = {
+                id: dragRef.current.id,
+                title: dragRef.current.title,
+                category: dragRef.current.category,
+                date: newDate,
+                startTime: newStartTime,
+                endTime: newEndTime,
+            };
+            dragRef.current = null;
+            try {
+                await request('/schedule/update', { method: 'PUT', body: payload });
+                loadData();
+            } catch (err) { alert(err.message); }
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+    };
+
+    // ── 리사이즈 ─────────────────────────────────────────
+    const handleResizeStart = (e, schedule) => {
+        e.stopPropagation();
+        e.preventDefault();
+
+        const gridEl = e.currentTarget.closest('.day-grid');
+        const gridRect = gridEl.getBoundingClientRect();
+        const startPx = ((() => {
+            const [sh, sm] = schedule.startTime.substring(0,5).split(':').map(Number);
+            return ((sh + sm/60) - startH) * PX_PER_HOUR;
+        })());
+
+        dragRef.current = {
+            type: 'resize',
+            id: schedule.id,
+            title: schedule.title,
+            date: schedule.date,
+            category: schedule.category,
+            originalStart: schedule.startTime.substring(0, 5),
+            bgClass: categoryColors[schedule.category] || 'bg-pastel-green',
+            blockLeft: gridRect.left,
+            blockWidth: gridRect.width,
+            blockTop: gridRect.top + startPx,
+            didDrag: false,
+        };
+        setResizingId(schedule.id);
+
+        const onMouseMove = (ev) => {
+            if (!dragRef.current) return;
+            dragRef.current.didDrag = true;
+            const newHeight = Math.max(15, ev.clientY - dragRef.current.blockTop);
+            setGhost({
+                x: dragRef.current.blockLeft,
+                y: dragRef.current.blockTop,
+                width: dragRef.current.blockWidth - 4,
+                height: newHeight,
+                title: dragRef.current.title,
+                bgClass: dragRef.current.bgClass,
+                isResize: true,
+            });
+        };
+
+        const onMouseUp = async (ev) => {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+            setResizingId(null);
+            setGhost(null);
+
+            if (!dragRef.current?.didDrag) { dragRef.current = null; return; }
+
+            // 필요한 데이터 먼저 저장
+            const { id, title, date, originalStart, category } = dragRef.current;
+
+            // 클릭 이벤트 차단 (200ms)
+            wasResizedRef.current = true;
+            dragRef.current = null;
+            setTimeout(() => { wasResizedRef.current = false; }, 200);
+
+            const gridRect = gridEl.getBoundingClientRect();
+            const rawY = ev.clientY - gridRect.top;
+            const clampedY = Math.max(0, rawY);
+            const newEndTime = pxToTime(clampedY);
+
+            // 최소 15분 보장
+            const [sh, sm] = originalStart.split(':').map(Number);
+            const [eh, em] = newEndTime.split(':').map(Number);
+            if (eh * 60 + em <= sh * 60 + sm + 15) return;
+
+            const payload = { id, title, date, category, startTime: originalStart, endTime: newEndTime };
+            try {
+                await request('/schedule/update', { method: 'PUT', body: payload });
+                loadData();
+            } catch (err) { alert(err.message); }
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+    };
+
     const currentDayOfWeek = new Date().getDay();
+
+    const timeSelectOptions = Array.from({ length: 24 }, (_, i) => (
+        <option key={i} value={`${String(i).padStart(2, '0')}:00`}>{String(i).padStart(2, '0')}시</option>
+    ));
+    const endTimeOptions = [
+        <option key="none" value="">없음</option>,
+        ...Array.from({ length: 24 }, (_, i) => {
+            const h = i + 1;
+            const val = h < 24 ? `${String(h).padStart(2, '0')}:00` : '23:59';
+            return <option key={i} value={val}>{h < 24 ? `${String(h).padStart(2, '0')}시` : '23:59'}</option>;
+        })
+    ];
 
     return (
         <>
             <div className="section-title">주간 일정 관리 &amp; 시간표</div>
 
-            {/* AI 입력 폼 */}
+            {/* 고스트 블록 (드래그 미리보기) */}
+            {ghost && (
+                <div
+                    className={`timetable-event ${ghost.bgClass}`}
+                    style={{
+                        position: 'fixed',
+                        left: ghost.x,
+                        top: ghost.y,
+                        width: ghost.width,
+                        height: ghost.height,
+                        opacity: 0.75,
+                        pointerEvents: 'none',
+                        zIndex: 9999,
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+                        transform: 'rotate(2deg)',
+                    }}
+                >
+                    {ghost.title}
+                </div>
+            )}
+
             <div className="ai-form-container">
                 <form onSubmit={handleAiSubmit} className="ai-form">
                     <input type="text" className="ai-input" placeholder="예: 이번주 금요일 오후 3시에 회의 추가" value={aiMessage} onChange={(e) => setAiMessage(e.target.value)} required />
@@ -167,12 +408,10 @@ function Timeline() {
             </div>
 
             <div className="timeline-layout">
-                {/* 왼쪽 사이드 패널: 고정일정 관리 */}
                 <div className="fixed-panel">
                     <div className="fixed-panel-header">📌 고정 일정</div>
                     <div className="fixed-panel-body">
                         <button className="btn-fixed-add-toggle" onClick={() => setIsFixedFormOpen(!isFixedFormOpen)}>+ 고정 일정 추가</button>
-                        
                         {isFixedFormOpen && (
                             <form onSubmit={handleAddFixed} className="fixed-add-form open">
                                 <label>일정 이름</label><input type="text" name="title" required />
@@ -180,27 +419,18 @@ function Timeline() {
                                 <select name="dayOfWeek" required>
                                     {dayLabels.map((l, i) => <option key={i} value={i}>{l}요일</option>)}
                                 </select>
-                                {/* ✨ 시작시간: 00~23시 전체 */}
                                 <label>시작 시간</label>
                                 <select name="startTime" required>
                                     {Array.from({ length: 24 }, (_, i) => (
-                                        <option key={i} value={`${String(i).padStart(2, '0')}:00`}>
-                                            {String(i).padStart(2, '0')}시
-                                        </option>
+                                        <option key={i} value={`${String(i).padStart(2, '0')}:00`}>{String(i).padStart(2, '0')}시</option>
                                     ))}
                                 </select>
-                                {/* ✨ 종료시간: 01~24시 전체 */}
                                 <label>종료 시간</label>
                                 <select name="endTime" required>
                                     {Array.from({ length: 24 }, (_, i) => {
                                         const h = i + 1;
-                                        const val = h < 24
-                                            ? `${String(h).padStart(2, '0')}:00`
-                                            : '23:59';
-                                        const label = h < 24
-                                            ? `${String(h).padStart(2, '0')}시`
-                                            : '23:59';
-                                        return <option key={i} value={val}>{label}</option>;
+                                        const val = h < 24 ? `${String(h).padStart(2, '0')}:00` : '23:59';
+                                        return <option key={i} value={val}>{h < 24 ? `${String(h).padStart(2, '0')}시` : '23:59'}</option>;
                                     })}
                                 </select>
                                 <label>카테고리</label>
@@ -211,7 +441,6 @@ function Timeline() {
                                 <button type="submit" className="btn-fixed-submit">✅ 추가</button>
                             </form>
                         )}
-
                         {fixedList.map(f => (
                             <div key={f.id} className={`fixed-item-card cat-${f.category}`}>
                                 <div className="f-title">{f.title}</div>
@@ -223,12 +452,10 @@ function Timeline() {
                     </div>
                 </div>
 
-                {/* 메인 시간표 Grid 구역 */}
                 <div className="timetable-wrapper">
                     <div className="timetable">
                         <div className="time-col">
                             <div className="time-header"></div>
-                            {/* ✨ 동적 시간 눈금 */}
                             {Array.from({ length: hours }).map((_, i) => (
                                 <div key={i} className="time-slot">{String(startH + i).padStart(2, '0')}:00</div>
                             ))}
@@ -236,36 +463,61 @@ function Timeline() {
 
                         {dayMap.map((dayIdx, idx) => {
                             const isToday = currentDayOfWeek === dayIdx;
-                            
-                            // 해당 요일의 일반 일정 필터링
                             const daySchedules = scheduleList.filter(s => new Date(s.date).getDay() === dayIdx);
-                            // 해당 요일의 고정 일정 필터링
                             const dayFixed = fixedList.filter(f => f.dayOfWeek === (dayIdx === 0 ? 6 : dayIdx - 1));
 
                             return (
                                 <div key={dayIdx} className={`day-col ${isToday ? 'is-today' : ''}`}>
                                     <div className="day-header">{dayLabels[idx]}</div>
-                                    {/* ✨ 동적 높이 + 빈칸 클릭 */}
-                                    <div className="day-grid" style={{ height: `${hours * PX_PER_HOUR}px` }} onClick={(e) => handleGridClick(e, dayIdx, idx)}>
-                                        {/* 일반 일정 렌더링 */}
+                                    <div
+                                        className="day-grid"
+                                        style={{ height: `${hours * PX_PER_HOUR}px` }}
+                                        onClick={(e) => handleGridClick(e, dayIdx, idx)}
+                                    >
                                         {daySchedules.map((s) => {
                                             const { top, height } = getPos(s.startTime, s.endTime);
                                             const bgClass = categoryColors[s.category] || 'bg-pastel-green';
+                                            const isDragging = draggingId === s.id;
 
                                             return (
-                                                <div key={s.id} className={`timetable-event ${bgClass}`} style={{ top, height, cursor: 'pointer' }} onClick={() => {
-                                                    setSelectedEvent({ id: s.id, title: s.title, date: s.date, startTime: s.startTime.substring(0, 5), endTime: s.endTime ? s.endTime.substring(0, 5) : '' });
-                                                    setModalOpen(true);
-                                                }}>
+                                                <div
+                                                    key={s.id}
+                                                    className={`timetable-event ${bgClass}`}
+                                                    style={{
+                                                        top, height,
+                                                        cursor: isDragging ? 'grabbing' : 'grab',
+                                                        opacity: isDragging ? 0.3 : 0.85,
+                                                        userSelect: 'none',
+                                                        position: 'absolute',
+                                                    }}
+                                                    onMouseDown={(e) => handleDragStart(e, s, idx, dayIdx)}
+                                                    onClick={(e) => {
+                                                        if (dragRef.current?.didDrag) { e.stopPropagation(); return; }
+                                                        if (wasResizedRef.current) { e.stopPropagation(); return; }
+                                                        e.stopPropagation();
+                                                        setSelectedEvent({ id: s.id, title: s.title, date: s.date, startTime: s.startTime.substring(0, 5), endTime: s.endTime ? s.endTime.substring(0, 5) : '', category: s.category || '기타' });
+                                                        setModalOpen(true);
+                                                    }}
+                                                >
                                                     {s.title}
+                                                    <div
+                                                        className="resize-handle"
+                                                        style={{
+                                                            position: 'absolute', bottom: 0, left: 0, right: 0,
+                                                            height: '8px', cursor: 'ns-resize',
+                                                            background: 'rgba(0,0,0,0.15)',
+                                                            borderRadius: '0 0 4px 4px',
+                                                        }}
+                                                        onMouseDown={(e) => handleResizeStart(e, s)}
+                                                    />
                                                 </div>
                                             );
                                         })}
-                                        {/* 고정 일정 렌더링 */}
+
                                         {dayFixed.map((f) => {
                                             const { top, height } = getPos(f.startTime, f.endTime);
                                             return (
-                                                <div key={f.id} className="timetable-event bg-pastel-yellow" style={{ top, height, opacity: 0.7, borderLeft: '3px solid #C5A065', fontSize: '11px' }}>
+                                                <div key={f.id} className="timetable-event bg-pastel-yellow" style={{ top, height, opacity: 0.7, borderLeft: '3px solid #C5A065', fontSize: '11px', position: 'absolute' }}>
                                                     📌 {f.title}
                                                 </div>
                                             );
@@ -278,7 +530,7 @@ function Timeline() {
                 </div>
             </div>
 
-            {/* 일정 수정 모달 */}
+            {/* 수정 모달 */}
             {modalOpen && (
                 <div className="modal-overlay show">
                     <div className="modal-content">
@@ -288,18 +540,15 @@ function Timeline() {
                             <input type="text" value={selectedEvent.title} onChange={e => setSelectedEvent({ ...selectedEvent, title: e.target.value })} required />
                             <label>시작 시간</label>
                             <select value={selectedEvent.startTime} onChange={e => setSelectedEvent({ ...selectedEvent, startTime: e.target.value })} required>
-                                {Array.from({ length: 24 }, (_, i) => (
-                                    <option key={i} value={`${String(i).padStart(2, '0')}:00`}>{String(i).padStart(2, '0')}시</option>
-                                ))}
+                                {timeSelectOptions}
                             </select>
                             <label>종료 시간</label>
                             <select value={selectedEvent.endTime} onChange={e => setSelectedEvent({ ...selectedEvent, endTime: e.target.value })}>
-                                <option value="">없음</option>
-                                {Array.from({ length: 24 }, (_, i) => {
-                                    const h = i + 1;
-                                    const val = h < 24 ? `${String(h).padStart(2, '0')}:00` : '23:59';
-                                    return <option key={i} value={val}>{h < 24 ? `${String(h).padStart(2, '0')}시` : '23:59'}</option>;
-                                })}
+                                {endTimeOptions}
+                            </select>
+                            <label>카테고리</label>
+                            <select value={selectedEvent.category} onChange={e => setSelectedEvent({ ...selectedEvent, category: e.target.value })} required>
+                                {['회의', '공부', '약속', '운동', '기타'].map(v => <option key={v} value={v}>{v}</option>)}
                             </select>
                             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                                 <button type="submit" className="btn-fixed-submit" style={{ flex: 1 }}>💾 저장</button>
@@ -311,7 +560,7 @@ function Timeline() {
                 </div>
             )}
 
-            {/* 일정 추가 모달 */}
+            {/* 추가 모달 */}
             {addModalOpen && (
                 <div className="modal-overlay show">
                     <div className="modal-content">
@@ -321,18 +570,15 @@ function Timeline() {
                             <input type="text" value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} required autoFocus />
                             <label>시작 시간</label>
                             <select value={newEvent.startTime} onChange={e => setNewEvent({ ...newEvent, startTime: e.target.value })} required>
-                                {Array.from({ length: 24 }, (_, i) => (
-                                    <option key={i} value={`${String(i).padStart(2, '0')}:00`}>{String(i).padStart(2, '00')}시</option>
-                                ))}
+                                {timeSelectOptions}
                             </select>
                             <label>종료 시간</label>
                             <select value={newEvent.endTime} onChange={e => setNewEvent({ ...newEvent, endTime: e.target.value })}>
-                                <option value="">없음</option>
-                                {Array.from({ length: 24 }, (_, i) => {
-                                    const h = i + 1;
-                                    const val = h < 24 ? `${String(h).padStart(2, '0')}:00` : '23:59';
-                                    return <option key={i} value={val}>{h < 24 ? `${String(h).padStart(2, '0')}시` : '23:59'}</option>;
-                                })}
+                                {endTimeOptions}
+                            </select>
+                            <label>카테고리</label>
+                            <select value={newEvent.category} onChange={e => setNewEvent({ ...newEvent, category: e.target.value })} required>
+                                {['회의', '공부', '약속', '운동', '기타'].map(v => <option key={v} value={v}>{v}</option>)}
                             </select>
                             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                                 <button type="submit" className="btn-fixed-submit" style={{ flex: 1 }}>✅ 추가</button>
