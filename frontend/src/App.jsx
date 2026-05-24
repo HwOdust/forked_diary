@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import MyPage from './pages/MyPage';
 import { request } from './api';
+import GeminiTest from './pages/GeminiTest';
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -50,6 +51,7 @@ function App() {
                     <Route path="/mypage" element={isAuthenticated ? <MyPage setTheme={setTheme} /> : <Navigate to="/login" />} />
                     <Route path="/login" element={<Login setIsAuthenticated={setIsAuthenticated} />} />
                     <Route path="/signup" element={<Signup />} />
+                    <Route path="/gemini" element={<GeminiTest />} />
                 </Routes>
             </main>
             <Footer />

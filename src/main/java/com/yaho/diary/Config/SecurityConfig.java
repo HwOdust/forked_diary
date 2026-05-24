@@ -24,7 +24,7 @@ public class SecurityConfig {
             
             // 2. 가입 및 로그인/로그아웃 API는 누구나 접근할 수 있도록 허용합니다.
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/signup", "/api/login", "/api/logout").permitAll()
+                .requestMatchers("/api/signup", "/api/login", "/api/logout", "/ai", "/gemini").permitAll()
                 .anyRequest().authenticated()
             )
             
