@@ -5,6 +5,7 @@ import com.yaho.diary.Entity.Schedule;
 import com.yaho.diary.Repository.FixedScheduleRepository;
 import com.yaho.diary.Repository.ScheduleRepository;
 import com.yaho.diary.Service.OllamaScheduleService;
+import com.yaho.diary.Service.GeminiService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,16 +22,18 @@ import java.util.List;
 @RequestMapping("/api/schedule")
 public class ScheduleController {
 
-    private final OllamaScheduleService ollamaScheduleService;
+    //private final OllamaScheduleService ollamaScheduleService;
+    private final GeminiService geminiService;
     private final ScheduleRepository scheduleRepository;
     private final FixedScheduleRepository fixedScheduleRepository;
 
     public ScheduleController(
-            OllamaScheduleService ollamaScheduleService,
+            GeminiService geminiService,
             ScheduleRepository scheduleRepository,
             FixedScheduleRepository fixedScheduleRepository
+            
     ) {
-        this.ollamaScheduleService = ollamaScheduleService;
+        this.geminiService = geminiService;
         this.scheduleRepository = scheduleRepository;
         this.fixedScheduleRepository = fixedScheduleRepository;
     }
@@ -56,11 +59,11 @@ public class ScheduleController {
         data.put("fixedList", fixedScheduleRepository.findAll()); // 고정 일정 추가
         return ResponseEntity.ok(data);
     }
-
+    
     @PostMapping("/ai")
     public ResponseEntity<AiScheduleDto> aiSchedule(@RequestBody Map<String, String> payload) throws Exception {
         String message = payload.get("message");
-        AiScheduleDto result = ollamaScheduleService.extractSchedule(message);
+        AiScheduleDto result = geminiService.extractSchedule(message);
         return ResponseEntity.ok(result);
     }
 
