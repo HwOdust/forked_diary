@@ -9,17 +9,30 @@ const categoryColors = {
     '기타': 'badge-기타'
 };
 
+// 랜덤 환영 문구 리스트
+const welcomeMessages = [
+    "넌 할 수 있어! 오늘도 화이팅~ 💪",
+    "오늘 하루도 알차게 보내봐요! ✨",
+    "차근차근 하나씩 해나가면 돼요! 🐢",
+    "멋진 하루가 될 거예요, 응원합니다! 🍀",
+    "오늘도 목표를 향해 한 걸음 전진! 🚀"
+];
+
 function Dashboard() {
     const [combinedSchedules, setCombinedSchedules] = useState([]);
     const [stats, setStats] = useState({ todayCount: 0, weekTotal: 0, remainingCount: 0 });
     const [todayStr, setTodayStr] = useState('');
     const [loading, setLoading] = useState(true);
+    const [welcomeMessage, setWelcomeMessage] = useState(''); // ✨ 환영 문구 상태
     const days = ['일', '월', '화', '수', '목', '금', '토'];
 
     useEffect(() => {
+        // ✨ 컴포넌트 마운트 시 랜덤 환영 문구 설정
+        const randomIndex = Math.floor(Math.random() * welcomeMessages.length);
+        setWelcomeMessage(welcomeMessages[randomIndex]);
+
         request('/diary')
             .then(data => {
-                // 이번 주 월요일 기준 7일간의 날짜 배열 생성 (YYYY-MM-DD 형식)
                 const startOfWeek = new Date(data.mon);
                 const weekDates = [];
                 for (let i = 0; i < 7; i++) {
@@ -31,16 +44,19 @@ function Dashboard() {
                     weekDates.push(`${year}-${month}-${day}`);
                 }
 
-                // 1. 이번 주 일반 일정 목록 로드
-                const regular = data.weekSchedules.map(s => ({ ...s, isFixed: false }));
+                // ✨ 일반 일정에 isCompleted 상태 추가
+                const regular = data.weekSchedules.map(s => ({ 
+                    ...s, 
+                    isFixed: false, 
+                    isCompleted: s.isCompleted || false 
+                }));
 
-                // 2. 고정 일정을 이번 주 날짜별 요일에 맞춰 맵핑 확장
+                // ✨ 고정 일정에 isCompleted 상태 추가
                 const expandedFixed = [];
                 weekDates.forEach((date, index) => {
-                    // index: 0=월요일, 1=화요일, ..., 6=일요일
                     const matchingFixed = (data.fixedList || []).filter(f => {
                         if (f.dayOfWeek !== index) return false;
-                        if (f.endDate && f.endDate < date) return false; // 기한이 만료된 것은 제외
+                        if (f.endDate && f.endDate < date) return false; 
                         return true;
                     });
 
@@ -52,12 +68,12 @@ function Dashboard() {
                             endTime: f.endTime,
                             title: `📌 ${f.title}`,
                             category: f.category,
-                            isFixed: true
+                            isFixed: true,
+                            isCompleted: false
                         });
                     });
                 });
 
-                // 3. 두 일정 목록을 합치고 [날짜 오름차순 -> 시간 오름차순] 정렬
                 const merged = [...regular, ...expandedFixed].sort((a, b) => {
                     const dateCmp = a.date.localeCompare(b.date);
                     if (dateCmp !== 0) return dateCmp;
@@ -66,7 +82,6 @@ function Dashboard() {
                     return a.startTime.localeCompare(b.startTime);
                 });
 
-                // 통계값 재계산
                 const todayCount = merged.filter(s => s.date === data.today).length;
                 const weekTotal = merged.length;
 
@@ -85,10 +100,25 @@ function Dashboard() {
             });
     }, []);
 
+    // ✨ 체크박스 클릭 시 완료 상태 토글 함수
+    const handleToggleComplete = (id) => {
+        setCombinedSchedules(prevSchedules => 
+            prevSchedules.map(schedule => 
+                schedule.id === id 
+                    ? { ...schedule, isCompleted: !schedule.isCompleted } 
+                    : schedule
+            )
+        );
+        // 필요시 백엔드 연동: request(`/schedule/${id}/complete`, { method: 'PUT' });
+    };
+
     if (loading) return <div className="no-schedule">로딩 중...🌿</div>;
 
     return (
         <>
+            {/* ✨ 환영 문구 표시 영역 */}
+            <h2 className="welcome-message">{welcomeMessage}</h2>
+
             <div className="stat-section">
                 <div className="stat-card">
                     <span className="stat-icon">📅</span>
@@ -113,10 +143,12 @@ function Dashboard() {
                 <table className="week-table">
                     <thead>
                         <tr>
+                            {/* ✨ 체크박스용 헤더 추가 및 비율 조정 */}
+                            <th style={{ width: '5%', textAlign: 'center' }}>✓</th>
                             <th style={{ width: '15%' }}>날짜</th>
                             <th style={{ width: '10%' }}>요일</th>
                             <th style={{ width: '15%' }}>시간</th>
-                            <th style={{ width: '25%' }}>일정</th>
+                            <th style={{ width: '20%' }}>일정</th>
                             <th style={{ width: '10%' }}>카테고리</th>
                             <th className="col-memo-home" style={{ width: '25%' }}>종료</th>
                         </tr>
@@ -126,12 +158,26 @@ function Dashboard() {
                             const isToday = s.date === todayStr;
                             const dayOfWeekStr = days[new Date(s.date).getDay()] + '요일';
                             const badgeClass = categoryColors[s.category] || 'badge-기타';
+                            
+                            // ✨ 완료 상태에 따라 tr 태그에 클래스 동적 부여
+                            const rowClass = `${isToday ? 'is-today' : ''} ${s.isCompleted ? 'completed-task' : ''}`.trim();
+
                             return (
-                                <tr key={s.id} className={isToday ? 'is-today' : ''}>
+                                <tr key={s.id} className={rowClass}>
+                                    {/* ✨ 체크박스 셀 추가 */}
+                                    <td style={{ textAlign: 'center' }}>
+                                        <input 
+                                            type="checkbox" 
+                                            className="task-checkbox"
+                                            checked={s.isCompleted} 
+                                            onChange={() => handleToggleComplete(s.id)} 
+                                        />
+                                    </td>
                                     <td>{s.date}</td>
                                     <td>{dayOfWeekStr}</td>
                                     <td>{s.startTime ? s.startTime.substring(0, 5) : '-'}</td>
-                                    <td>{s.title}</td>
+                                    {/* 취소선 스타일을 위해 span으로 감싸기 */}
+                                    <td><span>{s.title}</span></td>
                                     <td>
                                         <span className={`badge ${badgeClass}`}>{s.category}</span>
                                     </td>

@@ -431,3 +431,45 @@ body.dark-theme .danger-zone {
 body.dark-theme .section-title {
     border-bottom-color: #3a3a48 !important;
 }
+
+/* ==========================================
+   추가 기능: 환영 문구 및 체크박스 스타일
+   ========================================== */
+
+/* 환영 문구 스타일 */
+.welcome-message {
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--point-gold);
+    margin-bottom: 30px;
+    text-align: center;
+    animation: fadeIn 1s ease-in-out; /* 부드럽게 나타나는 효과 */
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 체크박스 스타일 */
+.task-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--point-gold); /* 체크박스 색상을 테마에 맞게 변경 */
+}
+
+/* 완료된 일정(취소선 및 흐리게 처리) */
+.completed-task span {
+    text-decoration: line-through;
+    color: #bbb !important;
+    transition: all 0.3s ease;
+}
+.completed-task .badge {
+    opacity: 0.5; /* 뱃지도 살짝 투명하게 */
+}
+
+/* 다크모드 대응 (완료된 일정 색상 조정) */
+body.dark-theme .completed-task span {
+    color: #66666e !important; 
+}
