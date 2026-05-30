@@ -15,15 +15,15 @@ function Calendar() {
     const [fixedList, setFixedList] = useState([]);
     const [completedFixedKeys, setCompletedFixedKeys] = useState([]);
 
-    // 추가 모달 상태
     const [addModalOpen, setAddModalOpen] = useState(false);
     const [newEvent, setNewEvent] = useState({ title: '', date: '', startTime: '09:00', endTime: '10:00', category: '기타' });
 
-    // 수정 모달 상태
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState({ id: '', title: '', date: '', startTime: '', endTime: '', category: '기타', isCompleted: false });
 
-    // 드래그 상태
+    const [fixedCheckModalOpen, setFixedCheckModalOpen] = useState(false);
+    const [selectedFixedCheck, setSelectedFixedCheck] = useState({ id: '', title: '', date: '' });
+
     const dragRef = useRef(null);
     const wasClickRef = useRef(false);
     const [draggingId, setDraggingId] = useState(null);
@@ -179,6 +179,7 @@ function Calendar() {
             return true;
         }).map(f => ({
             id: `fixed-${f.id}-${dateStr}`,
+            fixedId: f.id,
             title: `📌 ${f.title}`,
             startTime: f.startTime,
             category: f.category,
@@ -220,13 +221,17 @@ function Calendar() {
                                 className={`cal-event-chip ${bgClass} ${evt.isCompleted ? 'is-completed' : ''}`}
                                 style={{
                                     opacity: isDragging ? 0.3 : 1,
-                                    cursor: evt.isFixed ? 'default' : 'grab',
+                                    cursor: evt.isFixed ? 'pointer' : 'grab',
                                     userSelect: 'none',
                                 }}
                                 onMouseDown={(e) => handleChipDragStart(e, evt)}
                                 onClick={e => {
                                     e.stopPropagation();
-                                    if (evt.isFixed) return;
+                                    if (evt.isFixed) {
+                                        setSelectedFixedCheck({ id: evt.fixedId, title: evt.title, date: dateStr });
+                                        setFixedCheckModalOpen(true);
+                                        return;
+                                    }
                                     setSelectedEvent({
                                         id: evt.id,
                                         title: evt.title,
@@ -301,6 +306,31 @@ function Calendar() {
                 <div className="calendar-grid">{cells}</div>
             </div>
 
+            {/* 고정 일정 체크 모달 */}
+            {fixedCheckModalOpen && (
+                <div className="modal-overlay show">
+                    <div className="modal-content">
+                        <h3>📌 {selectedFixedCheck.title}</h3>
+                        <div className="complete-row">
+                            <span style={{ fontSize: '13px', color: '#888' }}>완료</span>
+                            <input
+                                type="checkbox"
+                                className="task-checkbox"
+                                checked={completedFixedKeys.includes(`${selectedFixedCheck.id}-${selectedFixedCheck.date}`)}
+                                onChange={async () => {
+                                    await request('/schedule/fixed-complete', {
+                                        method: 'PUT',
+                                        body: { fixedId: selectedFixedCheck.id, date: selectedFixedCheck.date }
+                                    });
+                                    await loadData();
+                                }}
+                            />
+                        </div>
+                        <button type="button" className="btn-fixed-submit" style={{ width: '100%', marginTop: '10px', backgroundColor: '#aaa' }} onClick={() => setFixedCheckModalOpen(false)}>닫기</button>
+                    </div>
+                </div>
+            )}
+
             {/* 수정 모달 */}
             {editModalOpen && (
                 <div className="modal-overlay show">
@@ -321,12 +351,12 @@ function Calendar() {
                             <select value={selectedEvent.category} onChange={e => setSelectedEvent({ ...selectedEvent, category: e.target.value })} required>
                                 {['회의', '공부', '약속', '운동', '기타'].map(v => <option key={v} value={v}>{v}</option>)}
                             </select>
-<div className="complete-row">
-    <span style={{ fontSize: '13px', color: '#888' }}>완료</span>
-    <input type="checkbox" className="task-checkbox" checked={selectedEvent.isCompleted || false} onChange={e => setSelectedEvent({ ...selectedEvent, isCompleted: e.target.checked })} />
-</div>
+                            <div className="complete-row">
+                                <span style={{ fontSize: '13px', color: '#888' }}>완료</span>
+                                <input type="checkbox" className="task-checkbox" checked={selectedEvent.isCompleted || false} onChange={e => setSelectedEvent({ ...selectedEvent, isCompleted: e.target.checked })} />
+                            </div>
                             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-<button type="submit" className="btn-fixed-submit" style={{ flex: 1, backgroundColor: '#4caf50' }}>💾 저장</button>
+                                <button type="submit" className="btn-fixed-submit" style={{ flex: 1, backgroundColor: '#4caf50' }}>💾 저장</button>
                                 <button type="button" className="btn-fixed-submit" style={{ flex: 1, backgroundColor: '#e74c3c' }} onClick={handleDeleteSchedule}>🗑 삭제</button>
                             </div>
                             <button type="button" className="btn-fixed-submit" style={{ width: '100%', marginTop: '6px', backgroundColor: '#aaa' }} onClick={() => setEditModalOpen(false)}>닫기</button>

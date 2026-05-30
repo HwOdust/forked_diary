@@ -550,12 +550,16 @@ body.dark-theme .gemini-proposal-card { background: #1a1a20 !important; border-c
     .gemini-chat-layout { flex-direction: column; }
     .gemini-draft-panel { width: 100%; max-height: none; }
     .gemini-messages { height: 320px; }
+
+}
+
 .timetable-event.is-completed {
     text-decoration: line-through !important;
     text-decoration-color: red !important;
     text-decoration-thickness: 2px !important;
     opacity: 0.5 !important;
 }
+
 .cal-event-chip.is-completed {
     text-decoration: line-through !important;
     text-decoration-color: red !important;
@@ -574,3 +578,10 @@ body.dark-theme .gemini-proposal-card { background: #1a1a20 !important; border-c
     border-radius: 6px;
     border: 1px solid #eee;
 }
+
+.fixed-item-card.cat-회의  { background-color: #d5e8f9; }
+.fixed-item-card.cat-공부  { background-color: #d4f2d4; }
+.fixed-item-card.cat-약속  { background-color: #fbe0ce; }
+.fixed-item-card.cat-운동  { background-color: #ebdff2; }
+.fixed-item-card.cat-기타  { background-color: #fcf3c5; }
+
