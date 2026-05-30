@@ -21,6 +21,12 @@ function Timeline() {
     const [addModalOpen, setAddModalOpen] = useState(false);
     const [newEvent, setNewEvent] = useState({ title: '', date: '', startTime: '', endTime: '', category: '기타' });
 
+    const [fixedModalOpen, setFixedModalOpen] = useState(false);
+    const [selectedFixed, setSelectedFixed] = useState({ id: '', title: '', dayOfWeek: 0, startTime: '', endTime: '', category: '기타', startDate: '', endDate: '' });
+
+    const [fixedCheckModalOpen, setFixedCheckModalOpen] = useState(false);
+    const [selectedFixedCheck, setSelectedFixedCheck] = useState({ id: '', title: '', date: '' });
+
     const dragRef = useRef(null);
     const wasResizedRef = useRef(false);
     const [draggingId, setDraggingId] = useState(null);
@@ -99,8 +105,27 @@ function Timeline() {
         } catch (err) { alert(err.message); }
     };
 
+    const handleUpdateFixed = async (e) => {
+        e.preventDefault();
+        try {
+            await request(`/fixed/update/${selectedFixed.id}`, { method: 'PUT', body: selectedFixed });
+            setFixedModalOpen(false);
+            loadData();
+        } catch (err) { alert(err.message); }
+    };
+
+    const handleDeleteFixed = async (id) => {
+        if (!window.confirm('정말 삭제할까요?')) return;
+        try {
+            await request(`/fixed/delete/${id}`, { method: 'DELETE' });
+            setFixedModalOpen(false);
+            loadData();
+        } catch (err) { alert(err.message); }
+    };
+
     const handleGridClick = (e, dayIdx, screenIdx) => {
         if (e.target.classList.contains('timetable-event')) return;
+        if (e.target.classList.contains('fixed-event')) return;
         if (e.target.classList.contains('resize-handle')) return;
         if (dragRef.current?.didDrag) return;
         if (wasResizedRef.current) return;
@@ -131,14 +156,6 @@ function Timeline() {
         try {
             await request('/fixed/add', { method: 'POST', body });
             setIsFixedFormOpen(false);
-            loadData();
-        } catch (err) { alert(err.message); }
-    };
-
-    const handleDeleteFixed = async (id) => {
-        if (!window.confirm('정말 삭제할까요?')) return;
-        try {
-            await request(`/fixed/delete/${id}`, { method: 'DELETE' });
             loadData();
         } catch (err) { alert(err.message); }
     };
@@ -250,7 +267,6 @@ function Timeline() {
             }
 
             const newDate = dayIdxToDateStr(targetDayIdx);
-
             const payload = {
                 id: dragRef.current.id,
                 title: dragRef.current.title,
@@ -435,11 +451,27 @@ function Timeline() {
                             </form>
                         )}
                         {fixedList.map(f => (
-                            <div key={f.id} className={`fixed-item-card cat-${f.category}`}>
+                            <div
+                                key={f.id}
+                                className={`fixed-item-card cat-${f.category}`}
+                                onClick={() => {
+                                    setSelectedFixed({
+                                        id: f.id,
+                                        title: f.title,
+                                        dayOfWeek: f.dayOfWeek,
+                                        startTime: f.startTime,
+                                        endTime: f.endTime,
+                                        category: f.category,
+                                        startDate: f.startDate || '',
+                                        endDate: f.endDate || '',
+                                    });
+                                    setFixedModalOpen(true);
+                                }}
+                                style={{ cursor: 'pointer' }}
+                            >
                                 <div className="f-title">{f.title}</div>
                                 <div className="f-day">{dayLabels[f.dayOfWeek]}요일</div>
                                 <div className="f-time">{f.startTime} ~ {f.endTime}</div>
-                                <button className="btn-fixed-del" onClick={() => handleDeleteFixed(f.id)}>🗑 삭제</button>
                             </div>
                         ))}
                     </div>
@@ -524,8 +556,19 @@ function Timeline() {
 
                                         {dayFixed.map((f) => {
                                             const { top, height } = getPos(f.startTime, f.endTime);
+                                            const dateStr = dayIdxToDateStr(dayIdx);
+                                            const isCompleted = completedFixedKeys.includes(`${f.id}-${dateStr}`);
                                             return (
-                                                <div key={f.id} className={`timetable-event ${categoryColors[f.category] || 'bg-pastel-yellow'} ${completedFixedKeys.includes(`${f.id}-${dayIdxToDateStr(dayIdx)}`) ? 'is-completed' : ''}`} style={{ top, height, opacity: 0.7, borderLeft: '3px solid #C5A065', fontSize: '11px', position: 'absolute' }}>
+                                                <div
+                                                    key={f.id}
+                                                    className={`timetable-event fixed-event ${categoryColors[f.category] || 'bg-pastel-yellow'} ${isCompleted ? 'is-completed' : ''}`}
+                                                    style={{ top, height, opacity: 0.7, borderLeft: '3px solid #C5A065', fontSize: '11px', position: 'absolute', cursor: 'pointer' }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedFixedCheck({ id: f.id, title: f.title, date: dateStr });
+                                                        setFixedCheckModalOpen(true);
+                                                    }}
+                                                >
                                                     📌 {f.title}
                                                 </div>
                                             );
@@ -537,6 +580,75 @@ function Timeline() {
                     </div>
                 </div>
             </div>
+
+            {/* 고정 일정 체크 모달 */}
+            {fixedCheckModalOpen && (
+                <div className="modal-overlay show">
+                    <div className="modal-content">
+                        <h3>📌 {selectedFixedCheck.title}</h3>
+                        <div className="complete-row">
+                            <span style={{ fontSize: '13px', color: '#888' }}>완료</span>
+                            <input
+                                type="checkbox"
+                                className="task-checkbox"
+                                checked={completedFixedKeys.includes(`${selectedFixedCheck.id}-${selectedFixedCheck.date}`)}
+                                onChange={async () => {
+                                    await request('/schedule/fixed-complete', {
+                                        method: 'PUT',
+                                        body: { fixedId: selectedFixedCheck.id, date: selectedFixedCheck.date }
+                                    });
+                                    await loadData();
+                                }}
+                            />
+                        </div>
+                        <button type="button" className="btn-fixed-submit" style={{ width: '100%', marginTop: '10px', backgroundColor: '#aaa' }} onClick={() => setFixedCheckModalOpen(false)}>닫기</button>
+                    </div>
+                </div>
+            )}
+
+            {/* 고정 일정 수정 모달 */}
+            {fixedModalOpen && (
+                <div className="modal-overlay show">
+                    <div className="modal-content">
+                        <h3>📌 고정 일정 수정</h3>
+                        <form onSubmit={handleUpdateFixed} className="fixed-add-form open" style={{ boxShadow: 'none', padding: 0, background: 'none' }}>
+                            <label>일정 이름</label>
+                            <input type="text" value={selectedFixed.title} onChange={e => setSelectedFixed({ ...selectedFixed, title: e.target.value })} required />
+                            <label>요일</label>
+                            <select value={selectedFixed.dayOfWeek} onChange={e => setSelectedFixed({ ...selectedFixed, dayOfWeek: Number(e.target.value) })} required>
+                                {dayLabels.map((l, i) => <option key={i} value={i}>{l}요일</option>)}
+                            </select>
+                            <label>시작 시간</label>
+                            <select value={selectedFixed.startTime} onChange={e => setSelectedFixed({ ...selectedFixed, startTime: e.target.value })} required>
+                                {Array.from({ length: 24 }, (_, i) => (
+                                    <option key={i} value={`${String(i).padStart(2, '0')}:00`}>{String(i).padStart(2, '0')}시</option>
+                                ))}
+                            </select>
+                            <label>종료 시간</label>
+                            <select value={selectedFixed.endTime} onChange={e => setSelectedFixed({ ...selectedFixed, endTime: e.target.value })} required>
+                                {Array.from({ length: 24 }, (_, i) => {
+                                    const h = i + 1;
+                                    const val = h < 24 ? `${String(h).padStart(2, '0')}:00` : '23:59';
+                                    return <option key={i} value={val}>{h < 24 ? `${String(h).padStart(2, '0')}시` : '23:59'}</option>;
+                                })}
+                            </select>
+                            <label>카테고리</label>
+                            <select value={selectedFixed.category} onChange={e => setSelectedFixed({ ...selectedFixed, category: e.target.value })} required>
+                                {['회의', '공부', '약속', '운동', '기타'].map(v => <option key={v} value={v}>{v}</option>)}
+                            </select>
+                            <label>시작일</label>
+                            <input type="date" value={selectedFixed.startDate} onChange={e => setSelectedFixed({ ...selectedFixed, startDate: e.target.value })} />
+                            <label>기한 (비워두면 무기한)</label>
+                            <input type="date" value={selectedFixed.endDate} onChange={e => setSelectedFixed({ ...selectedFixed, endDate: e.target.value })} />
+                            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                                <button type="submit" className="btn-fixed-submit" style={{ flex: 1, backgroundColor: '#4caf50' }}>💾 저장</button>
+                                <button type="button" className="btn-fixed-submit" style={{ flex: 1, backgroundColor: '#e74c3c' }} onClick={() => handleDeleteFixed(selectedFixed.id)}>🗑 삭제</button>
+                            </div>
+                            <button type="button" className="btn-fixed-submit" style={{ width: '100%', marginTop: '6px', backgroundColor: '#aaa' }} onClick={() => setFixedModalOpen(false)}>닫기</button>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* 수정 모달 */}
             {modalOpen && (
@@ -558,12 +670,12 @@ function Timeline() {
                             <select value={selectedEvent.category} onChange={e => setSelectedEvent({ ...selectedEvent, category: e.target.value })} required>
                                 {['회의', '공부', '약속', '운동', '기타'].map(v => <option key={v} value={v}>{v}</option>)}
                             </select>
-<div className="complete-row">
-    <span style={{ fontSize: '13px', color: '#888' }}>완료</span>
-    <input type="checkbox" className="task-checkbox" checked={selectedEvent.isCompleted || false} onChange={e => setSelectedEvent({ ...selectedEvent, isCompleted: e.target.checked })} />
-</div>
+                            <div className="complete-row">
+                                <span style={{ fontSize: '13px', color: '#888' }}>완료</span>
+                                <input type="checkbox" className="task-checkbox" checked={selectedEvent.isCompleted || false} onChange={e => setSelectedEvent({ ...selectedEvent, isCompleted: e.target.checked })} />
+                            </div>
                             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-<button type="submit" className="btn-fixed-submit" style={{ flex: 1, backgroundColor: '#4caf50' }}>💾 저장</button>
+                                <button type="submit" className="btn-fixed-submit" style={{ flex: 1, backgroundColor: '#4caf50' }}>💾 저장</button>
                                 <button type="button" className="btn-fixed-submit" style={{ flex: 1, backgroundColor: '#e74c3c' }} onClick={handleDeleteSchedule}>🗑 삭제</button>
                             </div>
                             <button type="button" className="btn-fixed-submit" style={{ width: '100%', marginTop: '6px', backgroundColor: '#aaa' }} onClick={() => setModalOpen(false)}>닫기</button>
