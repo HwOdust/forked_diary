@@ -71,6 +71,31 @@ function GeminiTest() {
         } finally { setLoading(false); }
     };
 
+    const handleApply = async (index) => {
+        setApplying(true);
+        setApplyIndex(index);
+
+        try {
+            const data = await request('/gemini/apply', {
+                method: 'POST',
+                body: proposals[index],
+            });
+
+            setMessages(prev => [
+                ...prev,
+                { role: 'assistant', content: data.message || '스케줄이 반영되었습니다.' }
+            ]);
+        } catch (e) {
+            setMessages(prev => [
+                ...prev,
+                { role: 'assistant', content: '스케줄 반영에 실패했습니다.' }
+            ]);
+        } finally {
+            setApplying(false);
+            setApplyIndex(null);
+        }
+    };
+    
     return (
         <div className="gemini-page-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div style={{ textAlign: 'left' }}><h2 style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-brown)' }}>🤖 AI 비서 스마트 스케줄링</h2></div>

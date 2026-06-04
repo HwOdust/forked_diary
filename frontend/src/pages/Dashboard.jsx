@@ -41,6 +41,7 @@ function Dashboard() {
                 }));
 
                 const completedFixedKeys = new Set(diaryData.completedFixedKeys || []);
+                const skippedFixedKeys = new Set(diaryData.skippedFixedKeys || []); // ✨ 추가: 백엔드 스킵 키 셋업
                 const expandedFixed = [];
                 
                 weekDates.forEach((date, index) => {
@@ -48,6 +49,7 @@ function Dashboard() {
                         if (f.dayOfWeek !== index) return false;
                         if (f.startDate && f.startDate > date) return false;
                         if (f.endDate && f.endDate < date) return false;
+                        if (skippedFixedKeys.has(`${f.id}-${date}`)) return false; // ✨ 추가: 제외 처리된 루틴은 대시보드 리스트 바인딩 원천 차단
                         return true;
                     });
                     
@@ -128,7 +130,6 @@ function Dashboard() {
             <p style={{ color: 'var(--text-light)', marginBottom: '24px', fontSize: '14px' }}>{welcomeMessage}</p>
 
             <div className="dashboard-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '30px' }}>
-                {/* 상단 통계 위젯 테마화 */}
                 {[
                     { icon: "🗓️", label: "오늘 일정", val: stats.todayCount, unit: "건" },
                     { icon: "📋", label: "이번 주 일정", val: stats.weekTotal, unit: "건" },
@@ -146,7 +147,6 @@ function Dashboard() {
             </div>
 
             <div className="dashboard-content-flex" style={{ display: 'flex', gap: '20px' }}>
-                {/* 왼쪽 카드: 다가오는 일정 */}
                 <div className="white-card" style={{ flex: 1, textAlign: 'left' }}>
                     <h3 style={{ fontSize: '15px', fontWeight: 'bold', marginBottom: '16px', color: 'var(--text-brown)' }}>곧 다가오는 일정</h3>
                     {upcomingTasks.length === 0 ? (
@@ -170,7 +170,6 @@ function Dashboard() {
                     )}
                 </div>
 
-                {/* 오른쪽 카드: 오늘 할 일 */}
                 <div className="white-card" style={{ flex: 1, textAlign: 'left' }}>
                     <h3 style={{ fontSize: '15px', fontWeight: 'bold', marginBottom: '16px', color: 'var(--text-brown)' }}>오늘 할 일 (To-Do)</h3>
                     {todayTasks.length === 0 ? (
