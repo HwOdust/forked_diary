@@ -9,12 +9,13 @@ const categoryColors = {
     '기타': 'bg-pastel-yellow'
 };
 
+/* 이모지 넣으면 이쁠까 싶어서 넣어봤는데 너무 AI가 만든거처럼 보여서 다시 지움 */
 function Calendar() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [scheduleList, setScheduleList] = useState([]);
     const [fixedList, setFixedList] = useState([]);
     const [completedFixedKeys, setCompletedFixedKeys] = useState([]);
-    const [skippedFixedKeys, setSkippedFixedKeys] = useState([]); // ✨ 제외 루틴 상태 추가
+    const [skippedFixedKeys, setSkippedFixedKeys] = useState([]);
 
     const [addModalOpen, setAddModalOpen] = useState(false);
     const [editModalOpen, setEditModalOpen] = useState(false);
@@ -34,7 +35,7 @@ function Calendar() {
             setScheduleList(data.scheduleList || []);
             setFixedList(data.fixedList || []);
             setCompletedFixedKeys(data.completedFixedKeys || []);
-            setSkippedFixedKeys(data.skippedFixedKeys || []); // ✨ 백엔드 제외 데이터 연동
+            setSkippedFixedKeys(data.skippedFixedKeys || []);
         });
     };
 
@@ -71,7 +72,6 @@ function Calendar() {
         try { await request(`/schedule/delete/${selectedEvent.id}`, { method: 'DELETE' }); setEditModalOpen(false); loadData(); } catch (err) { alert(err.message); } 
     };
 
-    // ✨ 오늘 일정에서 루틴 제외 기능 백엔드 연동 완료
     const handleSkipFixed = async () => {
         if (!window.confirm('오늘 일정에서 이 루틴을 제외할까요?')) return;
         try { 
@@ -113,7 +113,7 @@ function Calendar() {
         const dayEvents = scheduleList.filter(s => s.date === dateStr);
         const fDayOfWeek = new Date(year, month, d).getDay() === 0 ? 6 : new Date(year, month, d).getDay() - 1;
 
-        // ✨ 고정 루틴 필터링 시 skippedFixedKeys에 포함된 기록은 렌더링에서 자동 차단
+        // 고정 루틴 하루만 빼기 
         const dayFixedEvents = fixedList.filter(f => 
             f.dayOfWeek === fDayOfWeek && 
             !(f.startDate && f.startDate > dateStr) && 
@@ -178,13 +178,13 @@ function Calendar() {
                 </div>
             </div>
 
-            {/* 📌 고정 루틴 상세 설정창 (타임라인 컴포넌트와 완벽 대치) */}
+            {/* 오늘 일정에서 빼기랑 닫기 버튼 임시로 만듦 나중에 시간 나면 여기도 디자인 바꿀거.. 아마도? */}
             {fixedCheckModalOpen && (
                 <div className="modal-overlay show">
                     <div className="modal-content">
                         <h3>📌 {selectedFixedCheck.title}</h3>
                         <div className="complete-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '12px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-                            <span style={{ color: 'var(--text-brown)', fontWeight: 'bold' }}>✅ 오늘 루틴 완료 달성</span>
+                            <span style={{ color: 'var(--text-brown)', fontWeight: 'bold' }}>오늘 루틴 완료 달성</span>
                             <input 
                                 type="checkbox" 
                                 style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--point-gold)' }}
@@ -192,17 +192,16 @@ function Calendar() {
                                 onChange={async () => { await request('/schedule/fixed-complete', { method: 'PUT', body: { fixedId: selectedFixedCheck.id, date: selectedFixedCheck.date } }); loadData(); }} 
                             />
                         </div>
-                        <button type="button" onClick={handleSkipFixed} className="btn-close" style={{ width: '100%', marginTop: '16px', backgroundColor: '#e74c3c', color: '#fff' }}>🚫 오늘 일정에서 빼기</button>
+                        <button type="button" onClick={handleSkipFixed} className="btn-close" style={{ width: '100%', marginTop: '16px', backgroundColor: '#e74c3c', color: '#fff' }}>오늘 일정에서 빼기</button>
                         <button type="button" onClick={() => setFixedCheckModalOpen(false)} className="btn-close" style={{ width: '100%', marginTop: '8px' }}>닫기</button>
                     </div>
                 </div>
             )}
 
-            {/* 📅 일반 일정 수정창 (수정 칸 내부 완료 체크박스 완벽 구현) */}
             {editModalOpen && (
                 <div className="modal-overlay show">
                     <div className="modal-content">
-                        <h3>📅 일정 세부 수정</h3>
+                        <h3>일정 세부 수정</h3>
                         <form onSubmit={handleUpdateSchedule} className="quick-modal-form">
                             <div className="form-group">
                                 <label>제목</label>
@@ -226,7 +225,7 @@ function Calendar() {
                             </div>
                             
                             <div className="complete-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '12px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-                                <span style={{ color: 'var(--text-brown)', fontWeight: 'bold' }}>✅ 이 일정 완료하기</span>
+                                <span style={{ color: 'var(--text-brown)', fontWeight: 'bold' }}>이 일정 완료하기</span>
                                 <input 
                                     type="checkbox" 
                                     style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--point-gold)' }}
@@ -236,7 +235,7 @@ function Calendar() {
                             </div>
 
                             <div className="btn-container">
-                                <button type="submit" className="btn-submit">💾 저장</button>
+                                <button type="submit" className="btn-submit">저장</button>
                                 <button type="button" className="btn-close" style={{ background: '#e74c3c', color: '#fff' }} onClick={handleDeleteSchedule}>🗑 삭제</button>
                             </div>
                             <button type="button" className="btn-close" style={{ width: '100%' }} onClick={() => setEditModalOpen(false)}>취소</button>
@@ -246,7 +245,7 @@ function Calendar() {
             )}
 
             {addModalOpen && (
-                <div className="modal-overlay show"><div className="modal-content"><h3>📅 일정 추가</h3><form onSubmit={handleAddSchedule} className="quick-modal-form"><input type="text" placeholder="일정 제목" value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} required /><select value={newEvent.startTime} onChange={e => setNewEvent({ ...newEvent, startTime: e.target.value })} required>{timeSelectOptions}</select><select value={newEvent.endTime} onChange={e => setNewEvent({ ...newEvent, endTime: e.target.value })}><option value="">종료시간 없음</option>{timeSelectOptions}</select><select value={newEvent.category} onChange={e => setNewEvent({ ...newEvent, category: e.target.value })} required>{['회의', '공부', '약속', '운동', '기타'].map(v => <option key={v} value={v}>{v}</option>)}</select><div style={{ display: 'flex', gap: '10px' }}><button type="submit" className="btn-submit">✅ 추가</button><button type="button" className="btn-close" onClick={() => setAddModalOpen(false)}>닫기</button></div></form></div></div>
+                <div className="modal-overlay show"><div className="modal-content"><h3>일정 추가</h3><form onSubmit={handleAddSchedule} className="quick-modal-form"><input type="text" placeholder="일정 제목" value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} required /><select value={newEvent.startTime} onChange={e => setNewEvent({ ...newEvent, startTime: e.target.value })} required>{timeSelectOptions}</select><select value={newEvent.endTime} onChange={e => setNewEvent({ ...newEvent, endTime: e.target.value })}><option value="">종료시간 없음</option>{timeSelectOptions}</select><select value={newEvent.category} onChange={e => setNewEvent({ ...newEvent, category: e.target.value })} required>{['회의', '공부', '약속', '운동', '기타'].map(v => <option key={v} value={v}>{v}</option>)}</select><div style={{ display: 'flex', gap: '10px' }}><button type="submit" className="btn-submit">추가</button><button type="button" className="btn-close" onClick={() => setAddModalOpen(false)}>닫기</button></div></form></div></div>
             )}
         </div>
     );

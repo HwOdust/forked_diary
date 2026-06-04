@@ -24,7 +24,8 @@ function Timeline() {
     
     const [ddayModalOpen, setDdayModalOpen] = useState(false);
     const [newDday, setNewDday] = useState({ title: '', date: '' });
-    const [ddayList, setDdayList] = useState([{ id: 1, title: '프로젝트 발표 평가', date: '2026-06-05' }]);
+    // 일단 예시로 하나 넣은거
+    const [ddayList, setDdayList] = useState([{ id: 1, title: '프로젝트 발표 평가', date: '2026-06-05' } ]);
 
     const [selectedEvent, setSelectedEvent] = useState({ id: '', title: '', date: '', startTime: '', endTime: '', category: '기타', isCompleted: false });
     const [newEvent, setNewEvent] = useState({ title: '', date: '', startTime: '', endTime: '', category: '기타' });
@@ -159,6 +160,7 @@ function Timeline() {
     };
 
     const handleSkipFixed = async () => {
+        {/* 고정일정 하루만 빼기 */}
         if (!window.confirm('오늘 일정에서 이 루틴을 제외할까요?')) return;
         try { 
             await request('/schedule/fixed-skip', { method: 'POST', body: { fixedId: selectedFixedCheck.id, date: selectedFixedCheck.date } }); 
@@ -246,7 +248,7 @@ function Timeline() {
 
             <div className="timeline-top-bar" style={{ display: 'flex', gap: '15px', marginBottom: '24px', alignItems: 'center' }}>
                 <form onSubmit={handleAiSubmit} style={{ flex: 1, display: 'flex', gap: '10px' }}>
-                    <input type="text" placeholder="✨ AI 비서에게 지시하기 (예: '금요일 오후 3시에 팀 미팅 추가')" value={aiMessage} onChange={(e) => setAiMessage(e.target.value)} required style={{ flex: 1, padding: '12px 16px', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-brown)', fontSize: '14px', outline: 'none' }} />
+                    <input type="text" placeholder="AI 비서에게 지시하기 (예: '금요일 오후 3시에 팀 미팅 추가')" value={aiMessage} onChange={(e) => setAiMessage(e.target.value)} required style={{ flex: 1, padding: '12px 16px', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-brown)', fontSize: '14px', outline: 'none' }} />
                     <button type="submit" className="btn-ai-submit">AI 생성 지시</button>
                 </form>
                 <button className="btn-add-regular" onClick={() => { setNewEvent({ title: '', date: dayIdxToDateStr(new Date().getDay()), startTime: '09:00', endTime: '10:00', category: '기타' }); setAddModalOpen(true); }}>+ 일반 일정 추가</button>
@@ -291,7 +293,7 @@ function Timeline() {
                 <div className="timeline-side-widgets" style={{ width: '280px', display: 'flex', flexDirection: 'column', gap: '20px', flexShrink: 0 }}>
                     <div className="white-card" style={{ padding: '20px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                            <h3 style={{ fontSize: '14px', fontWeight: 'bold', margin: 0, color: 'var(--text-brown)' }}>🎯 주요 D-Day 마일스톤</h3>
+                            <h3 style={{ fontSize: '14px', fontWeight: 'bold', margin: 0, color: 'var(--text-brown)' }}>주요 D-Day 일정</h3>
                             <button onClick={() => setDdayModalOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--point-gold)', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>+ 지정하기</button>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px', color: 'var(--text-brown)' }}>
@@ -305,7 +307,7 @@ function Timeline() {
                     </div>
 
                     <div className="white-card" style={{ padding: '20px' }}>
-                        <button className="btn-fixed-add-toggle" onClick={() => setIsFixedFormOpen(!isFixedFormOpen)}>{isFixedFormOpen ? '✖ 루틴 설정창 접기' : '⚙️ 고정 반복 루틴 설정'}</button>
+                        <button className="btn-fixed-add-toggle" onClick={() => setIsFixedFormOpen(!isFixedFormOpen)}>{isFixedFormOpen ? '루틴 설정창 접기' : '고정 반복 루틴 설정'}</button>
                         {isFixedFormOpen && (
                             <form onSubmit={handleAddFixed} className="quick-modal-form" style={{ marginTop: '14px' }}>
                                 <div className="form-group"><label>루틴 이름</label><input type="text" name="title" required /></div>
@@ -350,7 +352,7 @@ function Timeline() {
             {ddayModalOpen && (
                 <div className="modal-overlay show">
                     <div className="modal-content">
-                        <h3>🎯 신규 D-Day 마일스톤 지정</h3>
+                        <h3>신규 D-Day 일정 지정</h3>
                         <form onSubmit={handleAddDday} className="quick-modal-form">
                             <div className="form-group">
                                 <label>목표일정 타이틀</label>
@@ -381,7 +383,7 @@ function Timeline() {
                     <div className="modal-content">
                         <h3>📌 {selectedFixedCheck.title}</h3>
                         <div className="complete-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '12px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-                            <span style={{ color: 'var(--text-brown)', fontWeight: 'bold' }}>✅ 오늘 루틴 완료 달성</span>
+                            <span style={{ color: 'var(--text-brown)', fontWeight: 'bold' }}>오늘 루틴 완료 달성</span>
                             <input 
                                 type="checkbox" 
                                 style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--point-gold)' }}
@@ -395,7 +397,6 @@ function Timeline() {
                 </div>
             )}
             
-            {/* 📌 고정 루틴 수정 시에도 "카테고리" 셀렉트 박스 추가 */}
             {fixedModalOpen && (
                 <div className="modal-overlay show">
                     <div className="modal-content">
@@ -450,8 +451,8 @@ function Timeline() {
                                 </select>
                             </div>
                             <div className="btn-container">
-                                <button type="submit" className="btn-submit">💾 저장</button>
-                                <button type="button" className="btn-close" style={{ backgroundColor: '#e74c3c', color: '#fff' }} onClick={() => handleDeleteFixed(selectedFixed.id)}>🗑 삭제</button>
+                                <button type="submit" className="btn-submit">저장</button>
+                                <button type="button" className="btn-close" style={{ backgroundColor: '#e74c3c', color: '#fff' }} onClick={() => handleDeleteFixed(selectedFixed.id)}>삭제</button>
                             </div>
                             <button type="button" className="btn-close" style={{ width: '100%' }} onClick={() => setFixedModalOpen(false)}>닫기</button>
                         </form>
@@ -459,11 +460,10 @@ function Timeline() {
                 </div>
             )}
             
-            {/* 📅 일반 일정 수정 시 "카테고리" 셀렉트 박스 추가 */}
             {modalOpen && (
                 <div className="modal-overlay show">
                     <div className="modal-content">
-                        <h3>📅 일정 세부 수정</h3>
+                        <h3>일정 세부 수정</h3>
                         <form onSubmit={handleUpdateSchedule} className="quick-modal-form">
                             <div className="form-group">
                                 <label>제목</label>
@@ -487,7 +487,7 @@ function Timeline() {
                             </div>
                             
                             <div className="complete-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '12px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-                                <span style={{ color: 'var(--text-brown)', fontWeight: 'bold' }}>✅ 이 일정 완료하기</span>
+                                <span style={{ color: 'var(--text-brown)', fontWeight: 'bold' }}>이 일정 완료하기</span>
                                 <input 
                                     type="checkbox" 
                                     style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--point-gold)' }}
@@ -497,8 +497,8 @@ function Timeline() {
                             </div>
 
                             <div className="btn-container">
-                                <button type="submit" className="btn-submit">💾 저장</button>
-                                <button type="button" className="btn-close" style={{ backgroundColor: '#e74c3c', color: '#fff' }} onClick={handleDeleteSchedule}>🗑 삭제</button>
+                                <button type="submit" className="btn-submit">저장</button>
+                                <button type="button" className="btn-close" style={{ backgroundColor: '#e74c3c', color: '#fff' }} onClick={handleDeleteSchedule}>삭제</button>
                             </div>
                             <button type="button" className="btn-close" style={{ width: '100%' }} onClick={() => setModalOpen(false)}>취소</button>
                         </form>
@@ -506,11 +506,10 @@ function Timeline() {
                 </div>
             )}
             
-            {/* 📅 일반 일정 추가 시 "카테고리" 셀렉트 박스 추가 */}
             {addModalOpen && (
                 <div className="modal-overlay show">
                     <div className="modal-content">
-                        <h3>📅 일정 신속 등록</h3>
+                        <h3>일정 신속 등록</h3>
                         <form onSubmit={handleAddSchedule} className="quick-modal-form">
                             <div className="form-group">
                                 <label>이름</label>
@@ -533,7 +532,7 @@ function Timeline() {
                                 </select>
                             </div>
                             <div className="btn-container">
-                                <button type="submit" className="btn-submit">✅ 등록</button>
+                                <button type="submit" className="btn-submit">등록</button>
                                 <button type="button" className="btn-close" onClick={() => setAddModalOpen(false)}>닫기</button>
                             </div>
                         </form>

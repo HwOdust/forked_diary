@@ -9,13 +9,12 @@ function MyPage({ setTheme }) {
     const [confirmPassword, setConfirmPassword] = useState('');
     const navigate = useNavigate();
 
-    // 동적 도넛 차트 및 레이블 색상 정의
     const categoryColors = {
-        '회의': '#60A5FA', // 파랑
-        '공부': '#4ADE80', // 초록
-        '약속': '#FB923C', // 주황
-        '운동': '#C084FC', // 보라
-        '기타': '#FACC15'  // 노랑
+        '회의': '#60A5FA', 
+        '공부': '#4ADE80', 
+        '약속': '#FB923C', 
+        '운동': '#C084FC', 
+        '기타': '#FACC15'  
     };
 
     const loadUserData = () => {
@@ -74,7 +73,6 @@ function MyPage({ setTheme }) {
 
     if (!info) return <div className="no-schedule">데이터를 불러오는 중...🌿</div>;
 
-    // conic-gradient를 활용한 유저 실시간 카테고리 비율 원형 계산기
     const stats = info.categoryStats || {};
     const total = info.totalSchedules || 0;
     
@@ -92,15 +90,14 @@ function MyPage({ setTheme }) {
     return (
         <div className="mypage-layout-grid-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             
-            {/* 1. 최상단 마이페이지 유저 네임태그 카드 (아이디/이메일 연동 완료) */}
+            {/* 마이페이지 이메일.. 왜안됨.....? */}
             <div className="white-card" style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '24px' }}>
                 <div style={{ fontSize: '42px', background: 'var(--bg-body)', border: '1px solid var(--border-color)', width: '75px', height: '75px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🐻</div>
                 <div style={{ textAlign: 'left' }}>
-                    {/* 로그인 시 입력받은 아이디를 바인딩하고, 없으면 기본 문구를 띄웁니다 */}
                     <h2 style={{ fontSize: '20px', fontWeight: '900', margin: '0 0 4px', color: 'var(--text-brown)' }}>
                         {info.username ? `${info.username} 님` : 'YAHO 유저 님'}
                     </h2>
-                    {/* 로그인 시 입력받은 이메일을 바인딩합니다 */}
+                    {/* 일단 기본문구 넣어둠...... */}
                     <p style={{ color: 'var(--text-light)', fontSize: '14px', margin: 0, fontWeight: '500' }}>
                         {info.email || '오늘도 열심히 하는 사용자님을 응원합니다!'}
                     </p>
@@ -166,16 +163,15 @@ function MyPage({ setTheme }) {
                     </div>
                 </div>
 
-                {/* 우측 컬럼 팩 */}
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     
-                    {/* 카테고리별 분석 통계 동적 도넛 차트 위젯 */}
+                    {/* 가운데 뻥뚫린 원형 차트 */}
                     <div className="white-card" style={{ textAlign: 'left' }}>
                         <h3 style={{ fontSize: '15px', fontWeight: 'bold', marginBottom: '16px', color: 'var(--text-brown)' }}>📊 카테고리별 분석 통계</h3>
                         
                         {total === 0 ? (
                             <div style={{ padding: '30px 0', color: 'var(--text-light)', fontSize: '13px', textAlign: 'center' }}>
-                                스케줄 분석 데이터가 부족합니다. 일정을 등록해 보세요! 🌿
+                                스케줄 분석 데이터가 부족합니다. 일정을 등록해 보세요!
                             </div>
                         ) : (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
@@ -205,7 +201,6 @@ function MyPage({ setTheme }) {
                         )}
                     </div>
 
-                    {/* 비밀번호 변경 보안 입력창 카드 */}
                     <div className="white-card">
                         <form onSubmit={handlePasswordChange} className="quick-modal-form" style={{ textAlign: 'left' }}>
                             <h3 style={{ fontSize: '15px', fontWeight: 'bold', marginBottom: '4px', color: 'var(--text-brown)' }}>🔒 비밀번호 수정</h3>
@@ -225,7 +220,6 @@ function MyPage({ setTheme }) {
                         </form>
                     </div>
 
-                    {/* 영구 계정 삭제 위험 구역 경고 알림판 */}
                     <div className="white-card danger-zone" style={{ border: '1px solid #dc2626', background: info.theme === 'dark' ? '#2D1D1D' : '#fff5f5', padding: '20px', textAlign: 'left', transition: 'background-color 0.3s' }}>
                         <h3 style={{ color: '#dc2626', fontSize: '15px', fontWeight: 'bold', marginBottom: '6px' }}>⚠️ 위험 구역</h3>
                         <p style={{ fontSize: '12px', color: '#ef4444', marginBottom: '16px', lineHeight: '1.4', fontWeight: '500' }}>
