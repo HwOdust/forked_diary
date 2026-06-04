@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { request } from '../api';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const categoryColors = {
     '회의': 'bg-pastel-blue',
@@ -28,6 +30,8 @@ function Timeline() {
     const [newEvent, setNewEvent] = useState({ title: '', date: '', startTime: '', endTime: '', category: '기타' });
     const [selectedFixed, setSelectedFixed] = useState({ id: '', title: '', dayOfWeek: 0, startTime: '', endTime: '', category: '기타', startDate: '', endDate: '' });
     const [selectedFixedCheck, setSelectedFixedCheck] = useState({ id: '', title: '', date: '' });
+    
+    const [newFixedDates, setNewFixedDates] = useState({ startDate: null, endDate: null });
 
     const dragRef = useRef(null);
     const wasResizedRef = useRef(false);
@@ -35,10 +39,17 @@ function Timeline() {
     const [resizingId, setResizingId] = useState(null);
     const [ghost, setGhost] = useState(null);
     const [completedFixedKeys, setCompletedFixedKeys] = useState([]);
+    const [skippedFixedKeys, setSkippedFixedKeys] = useState([]);
 
     const PX_PER_HOUR = 60;
     const dayMap = [1, 2, 3, 4, 5, 6, 0];
     const dayLabels = ['월', '화', '수', '목', '금', '토', '일'];
+
+    const formatDateStr = (dateObj) => {
+        if (!dateObj) return '';
+        const offset = dateObj.getTimezoneOffset() * 60000;
+        return (new Date(dateObj.getTime() - offset)).toISOString().split('T')[0];
+    };
 
     const allTimes = [
         ...scheduleList.map(s => s.startTime),
@@ -56,6 +67,7 @@ function Timeline() {
             setScheduleList(data.scheduleList || []);
             setFixedList(data.fixedList || []);
             setCompletedFixedKeys(data.completedFixedKeys || []);
+            setSkippedFixedKeys(data.skippedFixedKeys || []);
         });
     };
 
@@ -72,7 +84,7 @@ function Timeline() {
 
     const handleAddDday = (e) => {
         e.preventDefault();
-        if (!newDday.title || !newDday.date) return;
+        if (!newDday.title || !newDday.date) { alert('날짜를 선택해주세요.'); return; }
         setDdayList(prev => [...prev, { id: Date.now(), ...newDday }]);
         setNewDday({ title: '', date: '' });
         setDdayModalOpen(false);
@@ -84,7 +96,7 @@ function Timeline() {
         monday.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1));
         const target = new Date(monday);
         target.setDate(monday.getDate() + (dayIdx === 0 ? 6 : dayIdx - 1));
-        return `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(target.getDate()).padStart(2, '0')}`;
+        return formatDateStr(target);
     };
 
     const pxToTime = (px) => {
@@ -119,9 +131,20 @@ function Timeline() {
 
     const handleAddFixed = async (e) => {
         e.preventDefault();
-        const formData = new FormData(e.target); const body = Object.fromEntries(formData.entries());
+        const formData = new FormData(e.target); 
+        const body = Object.fromEntries(formData.entries());
+        
         if (body.endTime && body.endTime <= body.startTime) { alert('⚠️ 시간오류'); return; }
-        try { await request('/fixed/add', { method: 'POST', body }); setIsFixedFormOpen(false); loadData(); } catch (err) { alert(err.message); }
+        
+        body.startDate = newFixedDates.startDate ? formatDateStr(newFixedDates.startDate) : null;
+        body.endDate = newFixedDates.endDate ? formatDateStr(newFixedDates.endDate) : null;
+        
+        try { 
+            await request('/fixed/add', { method: 'POST', body }); 
+            setIsFixedFormOpen(false); 
+            setNewFixedDates({ startDate: null, endDate: null });
+            loadData(); 
+        } catch (err) { alert(err.message); }
     };
 
     const handleUpdateFixed = async (e) => {
@@ -133,6 +156,15 @@ function Timeline() {
     const handleDeleteFixed = async (id) => {
         if (!window.confirm('삭제할까요?')) return;
         try { await request(`/fixed/delete/${id}`, { method: 'DELETE' }); setFixedModalOpen(false); loadData(); } catch (err) { alert(err.message); }
+    };
+
+    const handleSkipFixed = async () => {
+        if (!window.confirm('오늘 일정에서 이 루틴을 제외할까요?')) return;
+        try { 
+            await request('/schedule/fixed-skip', { method: 'POST', body: { fixedId: selectedFixedCheck.id, date: selectedFixedCheck.date } }); 
+            setFixedCheckModalOpen(false); 
+            loadData(); 
+        } catch (err) { alert(err.message); }
     };
 
     const handleGridClick = (e, dayIdx, screenIdx) => {
@@ -243,7 +275,7 @@ function Timeline() {
                                                 </div>
                                             );
                                         })}
-                                        {fixedList.filter(f => f.dayOfWeek === (dayIdx === 0 ? 6 : dayIdx - 1) && !(f.startDate && f.startDate > dateStr) && !(f.endDate && f.endDate < dateStr)).map((f) => {
+                                        {fixedList.filter(f => f.dayOfWeek === (dayIdx === 0 ? 6 : dayIdx - 1) && !(f.startDate && f.startDate > dateStr) && !(f.endDate && f.endDate < dateStr) && !skippedFixedKeys.includes(`${f.id}-${dateStr}`)).map((f) => {
                                             const { top, height } = getPos(f.startTime, f.endTime);
                                             return (
                                                 <div key={f.id} className={`timetable-event fixed-event ${categoryColors[f.category] || 'bg-pastel-yellow'} ${completedFixedKeys.includes(`${f.id}-${dateStr}`) ? 'is-completed' : ''}`} style={{ top, height }} onClick={(e) => { e.stopPropagation(); setSelectedFixedCheck({ id: f.id, title: f.title, date: dateStr }); setFixedCheckModalOpen(true); }}>📌 {f.title}</div>
@@ -282,32 +314,231 @@ function Timeline() {
                                     <div className="form-group" style={{ flex: 1 }}><label>시작 시간</label><select name="startTime" required>{timeSelectOptions}</select></div>
                                     <div className="form-group" style={{ flex: 1 }}><label>종료 시간</label><select name="endTime" required>{timeSelectOptions}</select></div>
                                 </div>
+                                <div className="form-row">
+                                    <div className="form-group" style={{ flex: 1 }}>
+                                        <label>시작일(선택)</label>
+                                        <DatePicker 
+                                            selected={newFixedDates.startDate} 
+                                            onChange={(date) => setNewFixedDates({...newFixedDates, startDate: date})} 
+                                            dateFormat="yyyy-MM-dd" 
+                                            placeholderText="날짜 선택"
+                                            className="date-picker-input"
+                                        />
+                                    </div>
+                                    <div className="form-group" style={{ flex: 1 }}>
+                                        <label>종료일(선택)</label>
+                                        <DatePicker 
+                                            selected={newFixedDates.endDate} 
+                                            onChange={(date) => setNewFixedDates({...newFixedDates, endDate: date})} 
+                                            dateFormat="yyyy-MM-dd" 
+                                            placeholderText="날짜 선택"
+                                            className="date-picker-input"
+                                        />
+                                    </div>
+                                </div>
                                 <div className="form-group"><label>카테고리</label><select name="category" required defaultValue="기타">{['회의', '공부', '약속', '운동', '기타'].map(v => <option key={v} value={v}>{v}</option>)}</select></div>
                                 <button type="submit" className="btn-submit">루틴 저장</button>
                             </form>
                         )}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto', marginTop: '12px' }}>
-                            {fixedList.map(f => <div key={f.id} className="fixed-item-card" onClick={() => { setSelectedFixed({ id: f.id, title: f.title, dayOfWeek: f.dayOfWeek, startTime: f.startTime, endTime: f.endTime, category: f.category }); setFixedModalOpen(true); }}><div style={{ fontWeight: 'bold', fontSize: '12px', color:'var(--text-brown)' }}>{f.title}</div><div style={{ fontSize: '11px', color: 'var(--text-light)' }}>{dayLabels[f.dayOfWeek]}요일 | {f.startTime}~{f.endTime}</div></div>)}
+                            {fixedList.map(f => <div key={f.id} className="fixed-item-card" onClick={() => { setSelectedFixed({ id: f.id, title: f.title, dayOfWeek: f.dayOfWeek, startTime: f.startTime, endTime: f.endTime, category: f.category, startDate: f.startDate || '', endDate: f.endDate || '' }); setFixedModalOpen(true); }}><div style={{ fontWeight: 'bold', fontSize: '12px', color:'var(--text-brown)' }}>{f.title}</div><div style={{ fontSize: '11px', color: 'var(--text-light)' }}>{dayLabels[f.dayOfWeek]}요일 | {f.startTime}~{f.endTime}</div></div>)}
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* 모달 팝업 가두기 기법 양식 적용 */}
             {ddayModalOpen && (
-                <div className="modal-overlay show"><div className="modal-content"><h3>🎯 신규 D-Day 마일스톤 지정</h3><form onSubmit={handleAddDday} className="quick-modal-form"><div className="form-group"><label>목표일정 타이틀</label><input type="text" placeholder="예: 시험 시작일" value={newDday.title} onChange={e => setNewDday({ ...newDday, title: e.target.value })} required /></div><div className="form-group"><label>목표 기준 날짜</label><input type="date" value={newDday.date} onChange={e => setNewDday({ ...newDday, date: e.target.value })} required /></div><div className="btn-container"><button type="submit" className="btn-submit">지정 저장</button><button type="button" className="btn-close" onClick={() => setDdayModalOpen(false)}>닫기</button></div></form></div></div>
+                <div className="modal-overlay show">
+                    <div className="modal-content">
+                        <h3>🎯 신규 D-Day 마일스톤 지정</h3>
+                        <form onSubmit={handleAddDday} className="quick-modal-form">
+                            <div className="form-group">
+                                <label>목표일정 타이틀</label>
+                                <input type="text" placeholder="예: 시험 시작일" value={newDday.title} onChange={e => setNewDday({ ...newDday, title: e.target.value })} required />
+                            </div>
+                            <div className="form-group">
+                                <label>목표 기준 날짜</label>
+                                <DatePicker 
+                                    selected={newDday.date ? new Date(newDday.date) : null} 
+                                    onChange={(date) => setNewDday({ ...newDday, date: formatDateStr(date) })} 
+                                    dateFormat="yyyy-MM-dd" 
+                                    placeholderText="달력에서 선택"
+                                    className="date-picker-input"
+                                    required
+                                />
+                            </div>
+                            <div className="btn-container">
+                                <button type="submit" className="btn-submit">지정 저장</button>
+                                <button type="button" className="btn-close" onClick={() => setDdayModalOpen(false)}>닫기</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             )}
+            
             {fixedCheckModalOpen && (
-                <div className="modal-overlay show"><div className="modal-content"><h3>📌 {selectedFixedCheck.title}</h3><div className="complete-row"><span style={{ color: 'var(--text-brown)' }}>오늘 루틴 완료 달성</span><input type="checkbox" checked={completedFixedKeys.includes(`${selectedFixedCheck.id}-${selectedFixedCheck.date}`)} onChange={async () => { await request('/schedule/fixed-complete', { method: 'PUT', body: { fixedId: selectedFixedCheck.id, date: selectedFixedCheck.date } }); loadData(); }} /></div><button type="button" onClick={() => setFixedCheckModalOpen(false)} className="btn-close" style={{ width: '100%', marginTop: '16px' }}>닫기</button></div></div>
+                <div className="modal-overlay show">
+                    <div className="modal-content">
+                        <h3>📌 {selectedFixedCheck.title}</h3>
+                        <div className="complete-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '12px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                            <span style={{ color: 'var(--text-brown)', fontWeight: 'bold' }}>✅ 오늘 루틴 완료 달성</span>
+                            <input 
+                                type="checkbox" 
+                                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--point-gold)' }}
+                                checked={completedFixedKeys.includes(`${selectedFixedCheck.id}-${selectedFixedCheck.date}`)} 
+                                onChange={async () => { await request('/schedule/fixed-complete', { method: 'PUT', body: { fixedId: selectedFixedCheck.id, date: selectedFixedCheck.date } }); loadData(); }} 
+                            />
+                        </div>
+                        <button type="button" onClick={handleSkipFixed} className="btn-close" style={{ width: '100%', marginTop: '16px', backgroundColor: '#e74c3c', color: '#fff' }}>🚫 오늘 일정에서 빼기</button>
+                        <button type="button" onClick={() => setFixedCheckModalOpen(false)} className="btn-close" style={{ width: '100%', marginTop: '8px' }}>닫기</button>
+                    </div>
+                </div>
             )}
+            
+            {/* 📌 고정 루틴 수정 시에도 "카테고리" 셀렉트 박스 추가 */}
             {fixedModalOpen && (
-                <div className="modal-overlay show"><div className="modal-content"><h3>📌 고정 루틴 수정</h3><form onSubmit={handleUpdateFixed} className="quick-modal-form"><div className="form-group"><label>이름</label><input type="text" value={selectedFixed.title} onChange={e => setSelectedFixed({ ...selectedFixed, title: e.target.value })} required /></div><div className="form-row"><div className="form-group" style={{flex:1}}><label>시작</label><select value={selectedFixed.startTime} onChange={e => setSelectedFixed({...selectedFixed, startTime:e.target.value})}>{timeSelectOptions}</select></div><div className="form-group" style={{flex:1}}><label>종료</label><select value={selectedFixed.endTime} onChange={e => setSelectedFixed({...selectedFixed, endTime:e.target.value})}>{timeSelectOptions}</select></div></div><div className="btn-container"><button type="submit" className="btn-submit">💾 저장</button><button type="button" className="btn-close" style={{ backgroundColor: '#e74c3c', color: '#fff' }} onClick={() => handleDeleteFixed(selectedFixed.id)}>🗑 삭제</button></div><button type="button" className="btn-close" style={{ width: '100%' }} onClick={() => setFixedModalOpen(false)}>닫기</button></form></div></div>
+                <div className="modal-overlay show">
+                    <div className="modal-content">
+                        <h3>📌 고정 루틴 수정</h3>
+                        <form onSubmit={handleUpdateFixed} className="quick-modal-form">
+                            <div className="form-group">
+                                <label>이름</label>
+                                <input type="text" value={selectedFixed.title} onChange={e => setSelectedFixed({ ...selectedFixed, title: e.target.value })} required />
+                            </div>
+                            <div className="form-group">
+                                <label>요일</label>
+                                <select value={selectedFixed.dayOfWeek} onChange={e => setSelectedFixed({...selectedFixed, dayOfWeek: Number(e.target.value)})}>
+                                    {dayLabels.map((l, i) => <option key={i} value={i}>{l}요일</option>)}
+                                </select>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group" style={{flex:1}}>
+                                    <label>시작</label>
+                                    <select value={selectedFixed.startTime} onChange={e => setSelectedFixed({...selectedFixed, startTime:e.target.value})}>{timeSelectOptions}</select>
+                                </div>
+                                <div className="form-group" style={{flex:1}}>
+                                    <label>종료</label>
+                                    <select value={selectedFixed.endTime} onChange={e => setSelectedFixed({...selectedFixed, endTime:e.target.value})}>{timeSelectOptions}</select>
+                                </div>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group" style={{flex:1}}>
+                                    <label>시작일</label>
+                                    <DatePicker 
+                                        selected={selectedFixed.startDate ? new Date(selectedFixed.startDate) : null} 
+                                        onChange={(date) => setSelectedFixed({...selectedFixed, startDate: formatDateStr(date)})} 
+                                        dateFormat="yyyy-MM-dd"
+                                        placeholderText="없음"
+                                        className="date-picker-input"
+                                    />
+                                </div>
+                                <div className="form-group" style={{flex:1}}>
+                                    <label>종료일</label>
+                                    <DatePicker 
+                                        selected={selectedFixed.endDate ? new Date(selectedFixed.endDate) : null} 
+                                        onChange={(date) => setSelectedFixed({...selectedFixed, endDate: formatDateStr(date)})} 
+                                        dateFormat="yyyy-MM-dd"
+                                        placeholderText="없음"
+                                        className="date-picker-input"
+                                    />
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label>카테고리</label>
+                                <select value={selectedFixed.category} onChange={e => setSelectedFixed({ ...selectedFixed, category: e.target.value })} required>
+                                    {['회의', '공부', '약속', '운동', '기타'].map(v => <option key={v} value={v}>{v}</option>)}
+                                </select>
+                            </div>
+                            <div className="btn-container">
+                                <button type="submit" className="btn-submit">💾 저장</button>
+                                <button type="button" className="btn-close" style={{ backgroundColor: '#e74c3c', color: '#fff' }} onClick={() => handleDeleteFixed(selectedFixed.id)}>🗑 삭제</button>
+                            </div>
+                            <button type="button" className="btn-close" style={{ width: '100%' }} onClick={() => setFixedModalOpen(false)}>닫기</button>
+                        </form>
+                    </div>
+                </div>
             )}
+            
+            {/* 📅 일반 일정 수정 시 "카테고리" 셀렉트 박스 추가 */}
             {modalOpen && (
-                <div className="modal-overlay show"><div className="modal-content"><h3>📅 일정 세부 수정</h3><form onSubmit={handleUpdateSchedule} className="quick-modal-form"><div className="form-group"><label>제목</label><input type="text" value={selectedEvent.title} onChange={e => setSelectedEvent({ ...selectedEvent, title: e.target.value })} required /></div><div className="form-row"><div className="form-group" style={{flex:1}}><label>시작</label><select value={selectedEvent.startTime} onChange={e => setSelectedEvent({...selectedEvent, startTime:e.target.value})}>{timeSelectOptions}</select></div><div className="form-group" style={{flex:1}}><label>종료</label><select value={selectedEvent.endTime} onChange={e => setSelectedEvent({...selectedEvent, endTime:e.target.value})}>{timeSelectOptions}</select></div></div><div className="btn-container"><button type="submit" className="btn-submit">💾 저장</button><button type="button" className="btn-close" style={{ backgroundColor: '#e74c3c', color: '#fff' }} onClick={handleDeleteSchedule}>🗑 삭제</button></div><button type="button" className="btn-close" style={{ width: '100%' }} onClick={() => setModalOpen(false)}>취소</button></form></div></div>
+                <div className="modal-overlay show">
+                    <div className="modal-content">
+                        <h3>📅 일정 세부 수정</h3>
+                        <form onSubmit={handleUpdateSchedule} className="quick-modal-form">
+                            <div className="form-group">
+                                <label>제목</label>
+                                <input type="text" value={selectedEvent.title} onChange={e => setSelectedEvent({ ...selectedEvent, title: e.target.value })} required />
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group" style={{flex:1}}>
+                                    <label>시작</label>
+                                    <select value={selectedEvent.startTime} onChange={e => setSelectedEvent({...selectedEvent, startTime:e.target.value})}>{timeSelectOptions}</select>
+                                </div>
+                                <div className="form-group" style={{flex:1}}>
+                                    <label>종료</label>
+                                    <select value={selectedEvent.endTime} onChange={e => setSelectedEvent({...selectedEvent, endTime:e.target.value})}>{timeSelectOptions}</select>
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label>카테고리</label>
+                                <select value={selectedEvent.category} onChange={e => setSelectedEvent({ ...selectedEvent, category: e.target.value })} required>
+                                    {['회의', '공부', '약속', '운동', '기타'].map(v => <option key={v} value={v}>{v}</option>)}
+                                </select>
+                            </div>
+                            
+                            <div className="complete-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', padding: '12px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                                <span style={{ color: 'var(--text-brown)', fontWeight: 'bold' }}>✅ 이 일정 완료하기</span>
+                                <input 
+                                    type="checkbox" 
+                                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--point-gold)' }}
+                                    checked={selectedEvent.isCompleted || false} 
+                                    onChange={e => setSelectedEvent({ ...selectedEvent, isCompleted: e.target.checked })} 
+                                />
+                            </div>
+
+                            <div className="btn-container">
+                                <button type="submit" className="btn-submit">💾 저장</button>
+                                <button type="button" className="btn-close" style={{ backgroundColor: '#e74c3c', color: '#fff' }} onClick={handleDeleteSchedule}>🗑 삭제</button>
+                            </div>
+                            <button type="button" className="btn-close" style={{ width: '100%' }} onClick={() => setModalOpen(false)}>취소</button>
+                        </form>
+                    </div>
+                </div>
             )}
+            
+            {/* 📅 일반 일정 추가 시 "카테고리" 셀렉트 박스 추가 */}
             {addModalOpen && (
-                <div className="modal-overlay show"><div className="modal-content"><h3>📅 일정 신속 등록</h3><form onSubmit={handleAddSchedule} className="quick-modal-form"><div className="form-group"><label>이름</label><input type="text" value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} required /></div><div className="form-row"><div className="form-group" style={{flex:1}}><label>시작</label><select value={newEvent.startTime} onChange={e => setNewEvent({...newEvent, startTime:e.target.value})}>{timeSelectOptions}</select></div><div className="form-group" style={{flex:1}}><label>종료</label><select value={newEvent.endTime} onChange={e => setNewEvent({...newEvent, endTime:e.target.value})}>{timeSelectOptions}</select></div></div><div className="btn-container"><button type="submit" className="btn-submit">✅ 등록</button><button type="button" className="btn-close" onClick={() => setAddModalOpen(false)}>닫기</button></div></form></div></div>
+                <div className="modal-overlay show">
+                    <div className="modal-content">
+                        <h3>📅 일정 신속 등록</h3>
+                        <form onSubmit={handleAddSchedule} className="quick-modal-form">
+                            <div className="form-group">
+                                <label>이름</label>
+                                <input type="text" value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} required />
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group" style={{flex:1}}>
+                                    <label>시작</label>
+                                    <select value={newEvent.startTime} onChange={e => setNewEvent({...newEvent, startTime:e.target.value})}>{timeSelectOptions}</select>
+                                </div>
+                                <div className="form-group" style={{flex:1}}>
+                                    <label>종료</label>
+                                    <select value={newEvent.endTime} onChange={e => setNewEvent({...newEvent, endTime:e.target.value})}>{timeSelectOptions}</select>
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label>카테고리</label>
+                                <select value={newEvent.category} onChange={e => setNewEvent({ ...newEvent, category: e.target.value })} required>
+                                    {['회의', '공부', '약속', '운동', '기타'].map(v => <option key={v} value={v}>{v}</option>)}
+                                </select>
+                            </div>
+                            <div className="btn-container">
+                                <button type="submit" className="btn-submit">✅ 등록</button>
+                                <button type="button" className="btn-close" onClick={() => setAddModalOpen(false)}>닫기</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             )}
         </div>
     );
