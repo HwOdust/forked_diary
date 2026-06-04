@@ -17,7 +17,7 @@ function Header({ isAuthenticated, setIsAuthenticated, setIsSidebarOpen }) {
         }
     };
 
-    // 알림창이 열려있을 때 다른 빈 화면 영역 마우스 클릭 시 자동으로 슬림 접기 제어
+    // 알림창 외 다른 영역 클릭하면 자동으로 접힘
     useEffect(() => {
         function handleClickOutside(event) {
             if (notiRef.current && !notiRef.current.contains(event.target)) {
@@ -30,17 +30,15 @@ function Header({ isAuthenticated, setIsAuthenticated, setIsSidebarOpen }) {
 
     return (
         <header className="top-header" style={{ position: 'relative' }}>
-            {/* 좌측: 모바일 환경에서만 활성화되는 트리거 버튼 */}
+            {/* 좁은 화면용 사이드바 열고닫기 버튼 */}
             <div>
                 <button className="header-hamburger" onClick={() => setIsSidebarOpen(prev => !prev)}>
                     ☰
                 </button>
             </div>
 
-            {/* 우측 아이콘 세션 그룹 콘솔 */}
             <div className="header-icons" style={{ display: 'flex', gap: '15px', alignItems: 'center', position: 'relative' }} ref={notiRef}>
                 
-                {/* 알림 단추 코어 영역 */}
                 <div style={{ position: 'relative', display: 'inline-block' }}>
                     <button 
                         title="알림 센터 조회" 
@@ -49,11 +47,11 @@ function Header({ isAuthenticated, setIsAuthenticated, setIsSidebarOpen }) {
                     >
                         🔔
                     </button>
-                    {/* 신규 알림을 상징하는 고급 레드 미니 닷 알림 인디케이터 배지 */}
+                    {/* 새 알림 뜨면 빨간점 */}
                     <span style={{ position: 'absolute', top: '2px', right: '2px', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%' }}></span>
                 </div>
 
-                {/* ✨ 상호작용 요소: 알림 버튼을 누르면 부드럽게 펼쳐지는 동적 안내 팝업창 박스 */}
+                {/* 일단 대충 채워놓고 나중에 시간나면 마저 구현? 근데 백엔드랑 연동해야할수도.. */}
                 {showNoti && (
                     <div className="white-card" style={{ position: 'absolute', top: '42px', right: '0', width: '270px', zIndex: 3000, padding: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         <div style={{ fontSize: '13px', fontWeight: 'bold', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', color: 'var(--text-brown)', textAlign: 'left' }}>

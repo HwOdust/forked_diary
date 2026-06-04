@@ -41,7 +41,7 @@ function Dashboard() {
                 }));
 
                 const completedFixedKeys = new Set(diaryData.completedFixedKeys || []);
-                const skippedFixedKeys = new Set(diaryData.skippedFixedKeys || []); // ✨ 추가: 백엔드 스킵 키 셋업
+                const skippedFixedKeys = new Set(diaryData.skippedFixedKeys || []); 
                 const expandedFixed = [];
                 
                 weekDates.forEach((date, index) => {
@@ -49,7 +49,7 @@ function Dashboard() {
                         if (f.dayOfWeek !== index) return false;
                         if (f.startDate && f.startDate > date) return false;
                         if (f.endDate && f.endDate < date) return false;
-                        if (skippedFixedKeys.has(`${f.id}-${date}`)) return false; // ✨ 추가: 제외 처리된 루틴은 대시보드 리스트 바인딩 원천 차단
+                        if (skippedFixedKeys.has(`${f.id}-${date}`)) return false; 
                         return true;
                     });
                     
@@ -150,7 +150,7 @@ function Dashboard() {
                 <div className="white-card" style={{ flex: 1, textAlign: 'left' }}>
                     <h3 style={{ fontSize: '15px', fontWeight: 'bold', marginBottom: '16px', color: 'var(--text-brown)' }}>곧 다가오는 일정</h3>
                     {upcomingTasks.length === 0 ? (
-                        <div style={{ padding: '40px 0', color: 'var(--text-light)', fontSize: '13px', textAlign: 'center' }}>남은 일정이 없습니다. 대기 완료! ✨</div>
+                        <div style={{ padding: '40px 0', color: 'var(--text-light)', fontSize: '13px', textAlign: 'center' }}>남은 일정이 없습니다.</div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             {upcomingTasks.map(task => (
@@ -173,7 +173,7 @@ function Dashboard() {
                 <div className="white-card" style={{ flex: 1, textAlign: 'left' }}>
                     <h3 style={{ fontSize: '15px', fontWeight: 'bold', marginBottom: '16px', color: 'var(--text-brown)' }}>오늘 할 일 (To-Do)</h3>
                     {todayTasks.length === 0 ? (
-                        <div style={{ padding: '40px 0', color: 'var(--text-light)', fontSize: '13px', textAlign: 'center' }}>오늘 등록된 스케줄이 비어있습니다. 🌿</div>
+                        <div style={{ padding: '40px 0', color: 'var(--text-light)', fontSize: '13px', textAlign: 'center' }}>오늘 등록된 스케줄이 비어있습니다.</div>
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             {todayTasks.map(task => (

@@ -42,7 +42,7 @@ function ProposalCard({ option, index, onApply, applying, applyIndex }) {
                 </div>
             ))}
             <button type="button" className="btn-submit" style={{ width: '100%', marginTop: '10px', padding: '12px' }} onClick={() => onApply(index)} disabled={applying}>
-                {applying && applyIndex === index ? '⏳ 반영 중...' : '✅ 이 스케줄 확정 및 반영'}
+                {applying && applyIndex === index ? '반영 중...' : '이 스케줄 확정 및 반영'}
             </button>
         </div>
     );
@@ -98,7 +98,7 @@ function GeminiTest() {
     
     return (
         <div className="gemini-page-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ textAlign: 'left' }}><h2 style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-brown)' }}>🤖 AI 비서 스마트 스케줄링</h2></div>
+            <div style={{ textAlign: 'left' }}><h2 style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-brown)' }}>AI 비서 스마트 스케줄링</h2></div>
 
             <div className="dashboard-content-flex" style={{ display: 'flex', gap: '24px', alignItems: 'stretch' }}>
                 <div className="white-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '600px', padding: 0, overflow: 'hidden' }}>
@@ -108,7 +108,7 @@ function GeminiTest() {
                                 <div className={`gemini-bubble-${msg.role}`} style={{ padding: '12px 16px', borderRadius: '12px', fontSize: '14px', whiteSpace:'pre-wrap' }}>{msg.content}</div>
                             </div>
                         ))}
-                        {loading && <div style={{ alignSelf: 'flex-start' }}><div className="gemini-bubble-assistant" style={{ padding: '12px 16px', borderRadius: '12px', fontSize: '14px' }}>⏳ 최적의 일정을 연산 중입니다...</div></div>}
+                        {loading && <div style={{ alignSelf: 'flex-start' }}><div className="gemini-bubble-assistant" style={{ padding: '12px 16px', borderRadius: '12px', fontSize: '14px' }}>최적의 일정을 연산 중입니다...</div></div>}
                         <div ref={chatEndRef} />
                     </div>
 

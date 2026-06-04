@@ -1,7 +1,7 @@
 const BASE_URL = 'http://localhost:8080/api';
 
 export const request = async (url, options = {}) => {
-    options.credentials = 'include'; // 세션 쿠키 전달용
+    options.credentials = 'include'; // 세션 쿠키 전달
     options.headers = {
         'Content-Type': 'application/json',
         ...options.headers,
