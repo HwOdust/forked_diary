@@ -24,8 +24,7 @@ function Timeline() {
     
     const [ddayModalOpen, setDdayModalOpen] = useState(false);
     const [newDday, setNewDday] = useState({ title: '', date: '' });
-    // 일단 예시로 하나 넣은거
-    const [ddayList, setDdayList] = useState([{ id: 1, title: '프로젝트 발표 평가', date: '2026-06-05' } ]);
+    const [ddayList, setDdayList] = useState([{ id: 1, title: '프로젝트 발표 평가', date: '2026-06-05' }]);
 
     const [selectedEvent, setSelectedEvent] = useState({ id: '', title: '', date: '', startTime: '', endTime: '', category: '기타', isCompleted: false });
     const [newEvent, setNewEvent] = useState({ title: '', date: '', startTime: '', endTime: '', category: '기타' });
@@ -160,7 +159,6 @@ function Timeline() {
     };
 
     const handleSkipFixed = async () => {
-        {/* 고정일정 하루만 빼기 */}
         if (!window.confirm('오늘 일정에서 이 루틴을 제외할까요?')) return;
         try { 
             await request('/schedule/fixed-skip', { method: 'POST', body: { fixedId: selectedFixedCheck.id, date: selectedFixedCheck.date } }); 
@@ -319,22 +317,26 @@ function Timeline() {
                                 <div className="form-row">
                                     <div className="form-group" style={{ flex: 1 }}>
                                         <label>시작일(선택)</label>
+                                        {/* ✨ 버그 픽스: 모달 외부에 깔끔하게 띄우기 위한 withPortal 추가 */}
                                         <DatePicker 
                                             selected={newFixedDates.startDate} 
                                             onChange={(date) => setNewFixedDates({...newFixedDates, startDate: date})} 
                                             dateFormat="yyyy-MM-dd" 
                                             placeholderText="날짜 선택"
                                             className="date-picker-input"
+                                            withPortal
                                         />
                                     </div>
                                     <div className="form-group" style={{ flex: 1 }}>
                                         <label>종료일(선택)</label>
+                                        {/* ✨ 버그 픽스: 모달 외부에 깔끔하게 띄우기 위한 withPortal 추가 */}
                                         <DatePicker 
                                             selected={newFixedDates.endDate} 
                                             onChange={(date) => setNewFixedDates({...newFixedDates, endDate: date})} 
                                             dateFormat="yyyy-MM-dd" 
                                             placeholderText="날짜 선택"
                                             className="date-picker-input"
+                                            withPortal
                                         />
                                     </div>
                                 </div>
@@ -360,6 +362,7 @@ function Timeline() {
                             </div>
                             <div className="form-group">
                                 <label>목표 기준 날짜</label>
+                                {/* ✨ 버그 픽스: 모달 외부에 깔끔하게 띄우기 위한 withPortal 추가 */}
                                 <DatePicker 
                                     selected={newDday.date ? new Date(newDday.date) : null} 
                                     onChange={(date) => setNewDday({ ...newDday, date: formatDateStr(date) })} 
@@ -367,6 +370,7 @@ function Timeline() {
                                     placeholderText="달력에서 선택"
                                     className="date-picker-input"
                                     required
+                                    withPortal
                                 />
                             </div>
                             <div className="btn-container">
@@ -425,22 +429,26 @@ function Timeline() {
                             <div className="form-row">
                                 <div className="form-group" style={{flex:1}}>
                                     <label>시작일</label>
+                                    {/* ✨ 버그 픽스: 모달 외부에 깔끔하게 띄우기 위한 withPortal 추가 */}
                                     <DatePicker 
                                         selected={selectedFixed.startDate ? new Date(selectedFixed.startDate) : null} 
                                         onChange={(date) => setSelectedFixed({...selectedFixed, startDate: formatDateStr(date)})} 
                                         dateFormat="yyyy-MM-dd"
                                         placeholderText="없음"
                                         className="date-picker-input"
+                                        withPortal
                                     />
                                 </div>
                                 <div className="form-group" style={{flex:1}}>
                                     <label>종료일</label>
+                                    {/* ✨ 버그 픽스: 모달 외부에 깔끔하게 띄우기 위한 withPortal 추가 */}
                                     <DatePicker 
                                         selected={selectedFixed.endDate ? new Date(selectedFixed.endDate) : null} 
                                         onChange={(date) => setSelectedFixed({...selectedFixed, endDate: formatDateStr(date)})} 
                                         dateFormat="yyyy-MM-dd"
                                         placeholderText="없음"
                                         className="date-picker-input"
+                                        withPortal
                                     />
                                 </div>
                             </div>
