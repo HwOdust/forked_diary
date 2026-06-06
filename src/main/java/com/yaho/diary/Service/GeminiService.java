@@ -36,27 +36,17 @@ public class GeminiService {
     @Value("${gemini.api.key}")
     private String apiKey;
 
-    private static final String[] DAY_NAMES =
-            {"월", "화", "수", "목", "금", "토", "일"};
+    private static final String[] DAY_NAMES = {"월", "화", "수", "목", "금", "토", "일"};
 
-    public GeminiService(
-            ScheduleRepository scheduleRepository,
-            FixedScheduleRepository fixedScheduleRepository
-    ) {
+    public GeminiService(ScheduleRepository scheduleRepository, FixedScheduleRepository fixedScheduleRepository)
+    {
         this.scheduleRepository = scheduleRepository;
         this.fixedScheduleRepository = fixedScheduleRepository;
         this.restTemplate = new RestTemplate();
         this.objectMapper = new ObjectMapper();
     }
 
-    /**
-     * 챗봇 상담: 일정 제안만 생성 (DB 저장 없음)
-     */
-    public AiChatResponseDto proposeSchedule(
-            String userMessage,
-            List<AiChatMessageDto> history,
-            List<AiProposalOptionDto> currentProposals
-    ) throws Exception {
+    public AiChatResponseDto proposeSchedule(String userMessage, List<AiChatMessageDto> history, List<AiProposalOptionDto> currentProposals) throws Exception {
         LocalDate today = LocalDate.now();
         LocalDate mon = today.with(DayOfWeek.MONDAY);
         LocalDate sun = mon.plusDays(6);
@@ -130,11 +120,14 @@ public class GeminiService {
         return response;
     }
 
-    private void normalizeProposals(AiChatResponseDto response) {
-        if (response.getProposals() != null && !response.getProposals().isEmpty()) {
+    private void normalizeProposals(AiChatResponseDto response)
+    {
+        if (response.getProposals() != null && !response.getProposals().isEmpty())
+        {
             return;
         }
-        if (response.getItems() != null && !response.getItems().isEmpty()) {
+        if (response.getItems() != null && !response.getItems().isEmpty())
+        {
             AiProposalOptionDto single = new AiProposalOptionDto();
             single.setLabel("제안 시간표");
             single.setItems(response.getItems());
@@ -142,31 +135,35 @@ public class GeminiService {
         }
     }
 
-    private String makeCurrentDraftInfo(List<AiProposalOptionDto> currentProposals) {
-        if (currentProposals == null || currentProposals.isEmpty()) {
+    private String makeCurrentDraftInfo(List<AiProposalOptionDto> currentProposals)
+    {
+        if (currentProposals == null || currentProposals.isEmpty())
+        {
             return "현재 화면의 제안 초안: 없음 (새로 작성)";
         }
 
-        try {
-            return "현재 화면의 제안 초안 (사용자가 수정을 요청하면 이를 기반으로 proposals 전체를 갱신):\n"
-                    + objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(currentProposals);
-        } catch (Exception e) {
+        try
+        {
+            return "현재 화면의 제안 초안 (사용자가 수정을 요청하면 이를 기반으로 proposals 전체를 갱신):\n" + objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(currentProposals);
+        }
+        catch (Exception e)
+        {
             return "현재 화면의 제안 초안: (파싱 불가)";
         }
     }
 
-    /**
-     * 사용자가 승인한 제안 일정을 타임라인(DB)에 반영
-     */
-    public int applyProposal(List<AiProposedScheduleItem> items) {
-        if (items == null || items.isEmpty()) {
+    public int applyProposal(List<AiProposedScheduleItem> items)
+    {
+        if (items == null || items.isEmpty())
+        {
             return 0;
         }
 
         int count = 0;
-        for (AiProposedScheduleItem item : items) {
-            if (item.getDate() == null || item.getDate().isBlank()
-                    || item.getStartTime() == null || item.getStartTime().isBlank()) {
+        for (AiProposedScheduleItem item : items)
+        {
+            if (item.getDate() == null || item.getDate().isBlank() || item.getStartTime() == null || item.getStartTime().isBlank())
+            {
                 continue;
             }
 
@@ -175,9 +172,12 @@ public class GeminiService {
             s.setDate(LocalDate.parse(item.getDate()));
             s.setStartTime(LocalTime.parse(item.getStartTime()));
 
-            if (item.getEndTime() != null && !item.getEndTime().isBlank()) {
+            if (item.getEndTime() != null && !item.getEndTime().isBlank())
+            {
                 s.setEndTime(LocalTime.parse(item.getEndTime()));
-            } else {
+            }
+            else
+            {
                 s.setEndTime(LocalTime.parse(item.getStartTime()).plusHours(1));
             }
 
@@ -188,26 +188,13 @@ public class GeminiService {
         return count;
     }
 
-    public AiScheduleDto extractSchedule(String userMessage) throws Exception {
-
+    public AiScheduleDto extractSchedule(String userMessage) throws Exception
+    {
         LocalDate today = LocalDate.now();
-
-        String todayStr =
-                today + " (" +
-                today.getDayOfWeek()
-                        .getDisplayName(TextStyle.FULL, Locale.KOREAN)
-                + ")";
-
+        String todayStr = today + " (" + today.getDayOfWeek() .getDisplayName(TextStyle.FULL, Locale.KOREAN) + ")";
         LocalDate mon = today.with(DayOfWeek.MONDAY);
-
         String weekInfo = makeWeekInfo(mon);
-
-        String now =
-                LocalTime.now()
-                        .withSecond(0)
-                        .withNano(0)
-                        .toString();
-
+        String now = LocalTime.now() .withSecond(0) .withNano(0) .toString();
         String fixedInfo = makeFixedInfo(today);
 
         String prompt = """
@@ -266,58 +253,47 @@ public class GeminiService {
         System.out.println("Gemini 결과:");
         System.out.println(rawJson);
 
-        AiScheduleDto dto =
-                objectMapper.readValue(rawJson, AiScheduleDto.class);
+        AiScheduleDto dto = objectMapper.readValue(rawJson, AiScheduleDto.class);
 
         handleSchedule(dto);
 
         return dto;
     }
 
-    private String makeWeekInfo(LocalDate mon) {
-        return String.format(
-                "이번주 날짜:\n월요일: %s\n화요일: %s\n수요일: %s\n목요일: %s\n금요일: %s\n토요일: %s\n일요일: %s",
-                mon,
-                mon.plusDays(1),
-                mon.plusDays(2),
-                mon.plusDays(3),
-                mon.plusDays(4),
-                mon.plusDays(5),
-                mon.plusDays(6)
-        );
+    private String makeWeekInfo(LocalDate mon)
+    {
+        return String.format("이번주 날짜:\n월요일: %s\n화요일: %s\n수요일: %s\n목요일: %s\n금요일: %s\n토요일: %s\n일요일: %s",
+                mon, mon.plusDays(1), mon.plusDays(2), mon.plusDays(3), mon.plusDays(4), mon.plusDays(5), mon.plusDays(6));
     }
 
-    private String makeExistingSchedulesInfo(LocalDate mon, LocalDate sun) {
+    private String makeExistingSchedulesInfo(LocalDate mon, LocalDate sun)
+    {
         List<Schedule> weekSchedules = scheduleRepository.findByDateBetween(mon, sun);
-        if (weekSchedules.isEmpty()) {
+        if (weekSchedules.isEmpty())
+        {
             return "없음";
         }
 
         StringBuilder sb = new StringBuilder();
-        for (Schedule s : weekSchedules) {
-            sb.append("- ")
-                    .append(s.getDate())
-                    .append(" ")
-                    .append(s.getTitle())
-                    .append(" ")
-                    .append(s.getStartTime())
-                    .append("~")
-                    .append(s.getEndTime() != null ? s.getEndTime() : "")
-                    .append(" (")
-                    .append(s.getCategory())
-                    .append(")\n");
+        for (Schedule s : weekSchedules)
+        {
+            sb.append("- ") .append(s.getDate()) .append(" ") .append(s.getTitle()) .append(" ") .append(s.getStartTime())
+                    .append("~") .append(s.getEndTime() != null ? s.getEndTime() : "") .append(" (") .append(s.getCategory()) .append(")\n");
         }
         return sb.toString();
     }
 
-    private String makeChatHistory(List<AiChatMessageDto> history) {
-        if (history == null || history.isEmpty()) {
+    private String makeChatHistory(List<AiChatMessageDto> history)
+    {
+        if (history == null || history.isEmpty())
+        {
             return "";
         }
 
         StringBuilder sb = new StringBuilder("이전 대화:\n");
         int start = Math.max(0, history.size() - 6);
-        for (int i = start; i < history.size(); i++) {
+        for (int i = start; i < history.size(); i++)
+        {
             AiChatMessageDto m = history.get(i);
             if (m.getRole() == null || m.getContent() == null) continue;
             String label = "user".equals(m.getRole()) ? "사용자" : "AI";
@@ -326,45 +302,37 @@ public class GeminiService {
         return sb.toString();
     }
 
-    private String makeFixedInfo(LocalDate today) {
-
-        List<FixedSchedule> fixedList =
-                fixedScheduleRepository.findAll();
-
+    private String makeFixedInfo(LocalDate today)
+    {
+        List<FixedSchedule> fixedList = fixedScheduleRepository.findAll();
         List<FixedSchedule> filteredList = new ArrayList<>();
 
-        for (FixedSchedule f : fixedList) {
-            if (f.getEndDate() == null ||
-                    !f.getEndDate().isBefore(today)) {
+        for (FixedSchedule f : fixedList)
+        {
+            if (f.getEndDate() == null || !f.getEndDate().isBefore(today))
+            {
                 filteredList.add(f);
             }
         }
 
-        if (filteredList.isEmpty()) {
+        if (filteredList.isEmpty())
+        {
             return "없음";
         }
 
         String fixedInfo = "";
 
-        for (FixedSchedule f : filteredList) {
-            fixedInfo += "- " + f.getTitle()
-                    + ": 매주 "
-                    + DAY_NAMES[f.getDayOfWeek()]
-                    + "요일 "
-                    + f.getStartTime()
-                    + "~"
-                    + f.getEndTime()
-                    + "\n";
+        for (FixedSchedule f : filteredList)
+        {
+            fixedInfo += "- " + f.getTitle() + ": 매주 " + DAY_NAMES[f.getDayOfWeek()] + "요일 " + f.getStartTime() + "~" + f.getEndTime() + "\n";
         }
 
         return fixedInfo;
     }
 
-    private String callGemini(String prompt) throws Exception {
-
-        String url =
-                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key="
-                        + apiKey;
+    private String callGemini(String prompt) throws Exception
+    {
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey;
 
         JsonNode requestBody =
                 objectMapper.readTree("""
@@ -390,23 +358,12 @@ public class GeminiService {
                 .put("text", prompt);
 
         HttpHeaders headers = new HttpHeaders();
+
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        HttpEntity<String> request =
-                new HttpEntity<>(
-                        objectMapper.writeValueAsString(requestBody),
-                        headers
-                );
-
-        ResponseEntity<String> response =
-                restTemplate.postForEntity(
-                        url,
-                        request,
-                        String.class
-                );
-
-        JsonNode root =
-                objectMapper.readTree(response.getBody());
+        HttpEntity<String> request = new HttpEntity<>(objectMapper.writeValueAsString(requestBody), headers);
+        ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+        JsonNode root = objectMapper.readTree(response.getBody());
 
         String resultText =
                 root.get("candidates")
@@ -417,21 +374,18 @@ public class GeminiService {
                         .get("text")
                         .asText();
 
-        if (resultText.contains("{")) {
-            resultText =
-                    resultText.substring(
-                            resultText.indexOf("{"),
-                            resultText.lastIndexOf("}") + 1
-                    );
+        if (resultText.contains("{"))
+        {
+            resultText = resultText.substring(resultText.indexOf("{"), resultText.lastIndexOf("}") + 1);
         }
 
         return resultText;
     }
 
-    private void handleSchedule(AiScheduleDto dto) {
-
-        switch (dto.getAction()) {
-
+    private void handleSchedule(AiScheduleDto dto)
+    {
+        switch (dto.getAction())
+        {
             case "add":
                 addSchedule(dto);
                 break;
@@ -449,17 +403,16 @@ public class GeminiService {
                 break;
 
             default:
-                throw new RuntimeException(
-                        "알 수 없는 action: " + dto.getAction()
-                );
+                throw new RuntimeException("알 수 없는 action: " + dto.getAction());
         }
     }
 
-    private void addSchedule(AiScheduleDto dto) {
-
+    private void addSchedule(AiScheduleDto dto)
+    {
         System.out.println("일반 일정 추가 시작");
 
-        if (dto.getDate() == null || dto.getDate().isBlank()) {
+        if (dto.getDate() == null || dto.getDate().isBlank())
+        {
             dto.setDate(LocalDate.now().toString());
         }
 
@@ -468,18 +421,14 @@ public class GeminiService {
         newSchedule.setTitle(dto.getTitle());
         newSchedule.setDate(LocalDate.parse(dto.getDate()));
 
-        if (dto.getStartTime() != null &&
-                !dto.getStartTime().isBlank()) {
-            newSchedule.setStartTime(
-                    LocalTime.parse(dto.getStartTime())
-            );
+        if (dto.getStartTime() != null && !dto.getStartTime().isBlank())
+        {
+            newSchedule.setStartTime(LocalTime.parse(dto.getStartTime()));
         }
 
-        if (dto.getEndTime() != null &&
-                !dto.getEndTime().isBlank()) {
-            newSchedule.setEndTime(
-                    LocalTime.parse(dto.getEndTime())
-            );
+        if (dto.getEndTime() != null && !dto.getEndTime().isBlank())
+        {
+            newSchedule.setEndTime(LocalTime.parse(dto.getEndTime()));
         }
 
         newSchedule.setCategory(dto.getCategory());
@@ -489,112 +438,96 @@ public class GeminiService {
         System.out.println("일반 일정 추가 끝");
     }
 
-    private void addFixedSchedule(AiScheduleDto dto) {
-
+    private void addFixedSchedule(AiScheduleDto dto)
+    {
         System.out.println("고정 일정 추가 시작");
 
-        if (dto.getDayOfWeek() == null ||
-                dto.getStartTime() == null ||
-                dto.getStartTime().isBlank()) {
+        if (dto.getDayOfWeek() == null || dto.getStartTime() == null || dto.getStartTime().isBlank())
+        {
             return;
         }
 
         FixedSchedule newFixed = new FixedSchedule();
 
-        newFixed.setTitle(
-                dto.getTitle() != null ? dto.getTitle() : "고정일정"
-        );
-
+        newFixed.setTitle(dto.getTitle() != null ? dto.getTitle() : "고정일정");
         newFixed.setDayOfWeek(dto.getDayOfWeek());
         newFixed.setStartTime(dto.getStartTime());
 
-        if (dto.getEndTime() != null &&
-                !dto.getEndTime().isBlank()) {
+        if (dto.getEndTime() != null && !dto.getEndTime().isBlank())
+        {
             newFixed.setEndTime(dto.getEndTime());
-        } else {
-            newFixed.setEndTime(
-                    LocalTime.parse(dto.getStartTime())
+        }
+        else
+        {
+            newFixed.setEndTime(LocalTime.parse(dto.getStartTime())
                             .plusHours(1)
-                            .toString()
-            );
+                            .toString());
         }
 
-        newFixed.setCategory(
-                dto.getCategory() != null ? dto.getCategory() : "기타"
-        );
+        newFixed.setCategory(dto.getCategory() != null ? dto.getCategory() : "기타");
 
         fixedScheduleRepository.save(newFixed);
 
         System.out.println("고정 일정 추가 끝");
     }
 
-    private void deleteSchedule(AiScheduleDto dto) {
-
+    private void deleteSchedule(AiScheduleDto dto)
+    {
         System.out.println("삭제 시작");
 
-        if (dto.getTargetTitle() == null ||
-                dto.getTargetDate() == null ||
-                dto.getTargetDate().isBlank()) {
+        if (dto.getTargetTitle() == null || dto.getTargetDate() == null || dto.getTargetDate().isBlank())
+        {
             return;
         }
 
-        LocalDate delDate =
-                LocalDate.parse(dto.getTargetDate());
+        LocalDate delDate = LocalDate.parse(dto.getTargetDate());
 
         scheduleRepository.findAll()
                 .stream()
                 .filter(s ->
                         s.getTitle().equals(dto.getTargetTitle()) &&
-                        s.getDate().equals(delDate)
-                )
+                        s.getDate().equals(delDate))
                 .forEach(scheduleRepository::delete);
 
         System.out.println("삭제 끝");
     }
 
-    private void updateSchedule(AiScheduleDto dto) {
-
+    private void updateSchedule(AiScheduleDto dto)
+    {
         System.out.println("업데이트 시작");
 
-        if (dto.getTargetTitle() == null ||
-                dto.getTargetDate() == null ||
-                dto.getTargetDate().isBlank()) {
+        if (dto.getTargetTitle() == null || dto.getTargetDate() == null || dto.getTargetDate().isBlank())
+        {
             return;
         }
 
-        LocalDate updDate =
-                LocalDate.parse(dto.getTargetDate());
+        LocalDate updDate = LocalDate.parse(dto.getTargetDate());
 
         scheduleRepository.findAll()
                 .stream()
                 .filter(s ->
                         s.getTitle().equals(dto.getTargetTitle()) &&
-                        s.getDate().equals(updDate)
-                )
+                        s.getDate().equals(updDate))
                 .findFirst()
-                .ifPresent(s -> {
-
-                    if (dto.getTitle() != null &&
-                            !dto.getTitle().isBlank()) {
+                .ifPresent(s ->
+                {
+                    if (dto.getTitle() != null && !dto.getTitle().isBlank())
+                    {
                         s.setTitle(dto.getTitle());
                     }
 
-                    if (dto.getStartTime() != null &&
-                            !dto.getStartTime().isBlank()) {
-                        s.setStartTime(
-                                LocalTime.parse(dto.getStartTime())
-                        );
+                    if (dto.getStartTime() != null && !dto.getStartTime().isBlank())
+                    {
+                        s.setStartTime(LocalTime.parse(dto.getStartTime()));
                     }
 
-                    if (dto.getEndTime() != null &&
-                            !dto.getEndTime().isBlank()) {
-                        s.setEndTime(
-                                LocalTime.parse(dto.getEndTime())
-                        );
+                    if (dto.getEndTime() != null && !dto.getEndTime().isBlank())
+                    {
+                        s.setEndTime(LocalTime.parse(dto.getEndTime()));
                     }
 
-                    if (dto.getCategory() != null &&
-                            !dto.getCategory().isBlank()) {
+                    if (dto.getCategory() != null && !dto.getCategory().isBlank())
+                    {
                         s.setCategory(dto.getCategory());
                     }
 
