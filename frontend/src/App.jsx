@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import MyPage from './pages/MyPage';
 import GeminiTest from './pages/GeminiTest';
+import Landing from './pages/Landing';
 import { request } from './api';
 
 function App() {
@@ -53,13 +54,14 @@ function App() {
                 </div>
             ) : (
                 <Routes>
+                    {/* 👇 로그인 안된 상태의 라우팅 변경 */}
+                    <Route path="/" element={<Landing />} />
                     <Route path="/login" element={<Login setIsAuthenticated={setIsAuthenticated} />} />
                     <Route path="/signup" element={<Signup />} />
-                    <Route path="*" element={<Navigate to="/login" />} />
+                    <Route path="*" element={<Navigate to="/" />} />
                 </Routes>
             )}
         </Router>
     );
 }
-
 export default App;

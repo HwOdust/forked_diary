@@ -23,10 +23,10 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             
             // 2. 가입 및 로그인/로그아웃 API는 누구나 접근할 수 있도록 허용합니다.
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/signup", "/api/login", "/api/logout", "/ai", "/gemini").permitAll()
-                .anyRequest().authenticated()
-            )
+            .authorizeHttpRequests((authorizeHttpRequests) -> authorizeHttpRequests
+            .requestMatchers("/api/login", "/api/signup").permitAll() // 기존에 있던 코드
+            .requestMatchers("/api/guestbook", "/api/guestbook/**").permitAll() // 👈 이 줄을 꼭 추가해주세요!
+            .anyRequest().authenticated())
             
             // 3. 리액트 환경에 맞춰 폼 로그인 결과를 리다이렉트가 아닌 JSON 결과로 반환합니다.
             .formLogin(form -> form
