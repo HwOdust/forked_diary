@@ -142,9 +142,9 @@ public class OllamaScheduleService
 
         Map response = restTemplate.postForObject // ollama한테 요청
         (
-                "http://localhost:11434/api/generate",
-                reqBody,
-                Map.class
+            "http://localhost:11434/api/generate",
+            reqBody,
+            Map.class
         );
 
         String raw = response.get("response").toString(); // 응답 문자열
