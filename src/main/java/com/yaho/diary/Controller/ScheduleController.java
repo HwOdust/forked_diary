@@ -234,4 +234,22 @@ public class ScheduleController {
 
         return ResponseEntity.ok(response); 
     }
+
+    @PostMapping("/ai")
+    public ResponseEntity<Map<String, String>> processAiCommand(@RequestBody Map<String, String> payload) {
+        Map<String, String> response = new HashMap<>();
+        try {
+            String message = payload.get("message");
+            
+            geminiService.extractSchedule(message);
+            
+            response.put("message", "AI가 성공적으로 일정을 처리했습니다.");
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.put("message", "AI 처리 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
 }

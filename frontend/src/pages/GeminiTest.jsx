@@ -50,7 +50,7 @@ function ProposalCard({ option, index, onApply, applying, applyIndex }) {
 
 function GeminiTest() {
     const [input, setInput] = useState('');
-    const [messages, setMessages] = useState([{ role: 'assistant', content: '안녕하세요! YAHO AI 비서입니다. 스케줄 조율 고민을 편하게 말씀해 주세요.' }]);
+    const [messages, setMessages] = useState([{ role: 'assistant', content: '안녕하세요! YAHO AI 스케줄러입니다. 스케줄 조율 고민을 편하게 말씀해 주세요.' }]);
     const [proposals, setProposals] = useState([]);
     const [loading, setLoading] = useState(false);
     const [applying, setApplying] = useState(false);
@@ -98,7 +98,7 @@ function GeminiTest() {
     
     return (
         <div className="gemini-page-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ textAlign: 'left' }}><h2 style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-brown)' }}>AI 비서 스마트 스케줄링</h2></div>
+            <div style={{ textAlign: 'left' }}><h2 style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-brown)' }}>AI 스케줄러 스마트 스케줄링</h2></div>
 
             <div className="dashboard-content-flex" style={{ display: 'flex', gap: '24px', alignItems: 'stretch' }}>
                 <div className="white-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '600px', padding: 0, overflow: 'hidden' }}>

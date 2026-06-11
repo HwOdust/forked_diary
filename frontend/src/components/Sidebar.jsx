@@ -8,7 +8,7 @@ function Sidebar({ isOpen, setIsSidebarOpen }) {
     const location = useLocation();
 
     useEffect(() => {
-        // 스트릭 일수 동기화
+        // 스트릭 일수 
         request('/user/me')
             .then(data => {
                 setStreakDays(data.streak || 0);
@@ -17,7 +17,7 @@ function Sidebar({ isOpen, setIsSidebarOpen }) {
                 setStreakDays(0);
             });
 
-        // 오늘 날짜 라벨 실시간 계산 처리
+        // 오늘 날짜 
         const today = new Date();
         const mm = today.getMonth() + 1;
         const dd = today.getDate();
@@ -43,7 +43,7 @@ function Sidebar({ isOpen, setIsSidebarOpen }) {
                 <NavLink to="/" className={getMenuClass} onClick={handleMenuClick}>🏠 홈</NavLink>
                 <NavLink to="/timeline" className={getMenuClass} onClick={handleMenuClick}>⏳ 타임라인</NavLink>
                 <NavLink to="/calendar" className={getMenuClass} onClick={handleMenuClick}>📆 캘린더</NavLink>
-                <NavLink to="/gemini" className={getMenuClass} onClick={handleMenuClick}>🤖 AI 비서</NavLink>
+                <NavLink to="/gemini" className={getMenuClass} onClick={handleMenuClick}>🤖 AI 스케줄러</NavLink>
                 <NavLink to="/mypage" className={getMenuClass} onClick={handleMenuClick}>👤 마이페이지</NavLink>
             </nav>
 

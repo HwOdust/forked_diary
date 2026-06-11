@@ -62,7 +62,7 @@ function Header({ isAuthenticated, setIsAuthenticated, setIsSidebarOpen }) {
                             아직 처리되지 않은 오늘 일정이 존재합니다. 대시보드를 확인하세요! 💪
                         </div>
                         <div style={{ fontSize: '12px', color: 'var(--text-brown)', lineHeight: '1.4', borderTop: '1px dashed var(--border-color)', paddingTop: '6px', textAlign: 'left' }}>
-                            🤖 <strong>AI 비서 제안</strong><br/>
+                            🤖 <strong>AI 스케줄러의 제안</strong><br/>
                             작성하신 라이프 패턴 분석 결과, 한 단계 고도화된 주간 스케줄 대안 조립이 끝났습니다.
                         </div>
                     </div>

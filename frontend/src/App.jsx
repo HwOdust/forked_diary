@@ -9,7 +9,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import MyPage from './pages/MyPage';
 import GeminiTest from './pages/GeminiTest';
-import Landing from './pages/Landing';
+import Landing from './pages/Landing'; // Landing 페이지
 import { request } from './api';
 
 function App() {
@@ -18,11 +18,29 @@ function App() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     useEffect(() => {
+        request('/user/me')
+            .then(data => {
+                if (data && data.username) {
+                    setIsAuthenticated(true);
+                    setTheme(data.theme || 'light');
+                } else {
+                    setIsAuthenticated(false);
+                    setTheme('light');
+                }
+            })
+            .catch(() => {
+                setIsAuthenticated(false);
+                setTheme('light');
+            });
+    }, []);
+
+    useEffect(() => {
         if (isAuthenticated) {
-            request('/user/me')
-                .then(data => setTheme(data.theme || 'light'))
-                .catch(() => setIsAuthenticated(false));
+            request('/user/me').then(data => {
+                if (data && data.theme) setTheme(data.theme);
+            }).catch(() => {});
         } else {
+            // 로그아웃하면 라이트 모드로 보이게 / 이렇게 안하면 다크 모드랑 충돌남
             setTheme('light');
         }
     }, [isAuthenticated]);
@@ -54,7 +72,6 @@ function App() {
                 </div>
             ) : (
                 <Routes>
-                    {/* 👇 로그인 안된 상태의 라우팅 변경 */}
                     <Route path="/" element={<Landing />} />
                     <Route path="/login" element={<Login setIsAuthenticated={setIsAuthenticated} />} />
                     <Route path="/signup" element={<Signup />} />
@@ -64,4 +81,5 @@ function App() {
         </Router>
     );
 }
+
 export default App;
