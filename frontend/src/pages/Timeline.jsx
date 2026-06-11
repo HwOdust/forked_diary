@@ -17,6 +17,8 @@ function Timeline() {
     const [aiMessage, setAiMessage] = useState('');
     const [isFixedFormOpen, setIsFixedFormOpen] = useState(false);
 
+    const [aiLoading, setAiLoading] = useState(false);
+
     const [modalOpen, setModalOpen] = useState(false);
     const [addModalOpen, setAddModalOpen] = useState(false);
     const [fixedModalOpen, setFixedModalOpen] = useState(false);
@@ -40,6 +42,14 @@ function Timeline() {
     const [ghost, setGhost] = useState(null);
     const [completedFixedKeys, setCompletedFixedKeys] = useState([]);
     const [skippedFixedKeys, setSkippedFixedKeys] = useState([]);
+
+    const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+    useEffect(() => {
+        const handleResize = () => setWindowWidth(window.innerWidth);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const PX_PER_HOUR = 60;
     const dayMap = [1, 2, 3, 4, 5, 6, 0];
@@ -72,6 +82,32 @@ function Timeline() {
     };
 
     useEffect(() => { loadData(); }, []);
+
+    const getDisplayDates = () => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (windowWidth <= 768) {
+            return [today];
+        } else if (windowWidth <= 1200) {
+            return Array.from({ length: 5 }).map((_, i) => {
+                const d = new Date(today);
+                d.setDate(today.getDate() - 2 + i);
+                return d;
+            });
+        } else {
+            const monday = new Date(today);
+            const dayOffset = today.getDay() === 0 ? 6 : today.getDay() - 1;
+            monday.setDate(today.getDate() - dayOffset);
+            return Array.from({ length: 7 }).map((_, i) => {
+                const d = new Date(monday);
+                d.setDate(monday.getDate() + i);
+                return d;
+            });
+        }
+    };
+
+    const displayDates = getDisplayDates();
 
     const calculateDDay = (targetDateStr) => {
         if (!targetDateStr) return '';
@@ -106,10 +142,16 @@ function Timeline() {
 
     const handleAiSubmit = async (e) => {
         e.preventDefault();
+        setAiLoading(true);
         try {
             await request('/schedule/ai', { method: 'POST', body: { message: aiMessage } });
-            setAiMessage(''); loadData();
-        } catch (err) { alert(err.message); }
+            setAiMessage(''); 
+            loadData();
+        } catch (err) { 
+            alert(err.message); 
+        } finally {
+            setAiLoading(false);
+        }
     };
 
     const handleAddSchedule = async (e) => {
@@ -167,10 +209,10 @@ function Timeline() {
         } catch (err) { alert(err.message); }
     };
 
-    const handleGridClick = (e, dayIdx, screenIdx) => {
+    const handleGridClick = (e, dateStr, screenIdx) => {
         if (e.target.classList.contains('timetable-event') || e.target.classList.contains('fixed-event') || e.target.classList.contains('resize-handle') || dragRef.current?.didDrag || wasResizedRef.current) return;
         const clickedHour = Math.floor((e.clientY - e.currentTarget.getBoundingClientRect().top) / PX_PER_HOUR) + startH;
-        setNewEvent({ title: '', date: dayIdxToDateStr(dayIdx), startTime: `${String(clickedHour).padStart(2, '0')}:00`, endTime: `${String(Math.min(clickedHour + 1, 23)).padStart(2, '0')}:00`, category: '기타' });
+        setNewEvent({ title: '', date: dateStr, startTime: `${String(clickedHour).padStart(2, '0')}:00`, endTime: `${String(Math.min(clickedHour + 1, 23)).padStart(2, '0')}:00`, category: '기타' });
         setAddModalOpen(true);
     };
 
@@ -188,7 +230,7 @@ function Timeline() {
         return { top: `${top}px`, height: `${height}px` };
     };
 
-    const handleDragStart = (e, schedule, screenIdx, dayIdx) => {
+    const handleDragStart = (e, schedule, screenIdx) => {
         e.stopPropagation(); e.preventDefault();
         const rect = e.currentTarget.getBoundingClientRect();
         dragRef.current = { type: 'move', id: schedule.id, title: schedule.title, category: schedule.category, startMouseX: e.clientX, startMouseY: e.clientY, offsetY: e.clientY - rect.top, originalStart: schedule.startTime.substring(0, 5), originalEnd: schedule.endTime ? schedule.endTime.substring(0, 5) : '', originalDate: schedule.date, originalScreenIdx: screenIdx, didDrag: false, bgClass: categoryColors[schedule.category] || 'bg-pastel-green', blockWidth: rect.width, blockHeight: rect.height };
@@ -203,17 +245,22 @@ function Timeline() {
             setDraggingId(null); setGhost(null);
             if (!dragRef.current?.didDrag) { dragRef.current = null; return; }
             wasResizedRef.current = true; setTimeout(() => { wasResizedRef.current = false; }, 200);
+            
             let targetScreenIdx = dragRef.current.originalScreenIdx;
             document.querySelectorAll('.day-col').forEach((col, i) => { if (ev.clientX >= col.getBoundingClientRect().left && ev.clientX <= col.getBoundingClientRect().right) targetScreenIdx = i; });
             const gridEl = document.querySelectorAll('.day-grid')[targetScreenIdx];
             if (!gridEl) { dragRef.current = null; return; }
+            
             const newStartTime = pxToTime(Math.max(0, ev.clientY - gridEl.getBoundingClientRect().top - dragRef.current.offsetY));
             let newEndTime = dragRef.current.originalEnd;
             if (dragRef.current.originalEnd) {
                 const [sh, sm] = dragRef.current.originalStart.split(':').map(Number); const [eh, em] = dragRef.current.originalEnd.split(':').map(Number); const duration = (eh * 60 + em) - (sh * 60 + sm); const [nsh, nsm] = newStartTime.split(':').map(Number); const totalEnd = nsh * 60 + nsm + duration;
                 newEndTime = `${String(Math.min(Math.floor(totalEnd / 60), 23)).padStart(2, '0')}:${String(totalEnd % 60).padStart(2, '0')}`;
             }
-            try { await request('/schedule/update', { method: 'PUT', body: { id: dragRef.current.id, title: dragRef.current.title, category: dragRef.current.category, date: dayIdxToDateStr(dayMap[targetScreenIdx]), startTime: newStartTime, endTime: newEndTime === '' ? null : newEndTime } }); await loadData(); } catch (err) { alert(err.message); }
+            
+            const dropDateStr = formatDateStr(displayDates[targetScreenIdx]);
+
+            try { await request('/schedule/update', { method: 'PUT', body: { id: dragRef.current.id, title: dragRef.current.title, category: dragRef.current.category, date: dropDateStr, startTime: newStartTime, endTime: newEndTime === '' ? null : newEndTime } }); await loadData(); } catch (err) { alert(err.message); }
             dragRef.current = null;
         };
         window.addEventListener('mousemove', onMouseMove); window.addEventListener('mouseup', onMouseUp);
@@ -244,38 +291,55 @@ function Timeline() {
         <div className="timeline-page-container">
             {ghost && <div className={`timetable-event ${ghost.bgClass}`} style={{ position: 'fixed', left: ghost.x, top: ghost.y, width: ghost.width, height: ghost.height, opacity: 0.75, pointerEvents: 'none', zIndex: 9999, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', transform: 'rotate(2deg)' }}>{ghost.title}</div>}
 
-            <div className="timeline-top-bar" style={{ display: 'flex', gap: '15px', marginBottom: '24px', alignItems: 'center' }}>
-                <form onSubmit={handleAiSubmit} style={{ flex: 1, display: 'flex', gap: '10px' }}>
-                    <input type="text" placeholder="AI 비서에게 지시하기 (예: '금요일 오후 3시에 팀 미팅 추가')" value={aiMessage} onChange={(e) => setAiMessage(e.target.value)} required style={{ flex: 1, padding: '12px 16px', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-brown)', fontSize: '14px', outline: 'none' }} />
-                    <button type="submit" className="btn-ai-submit">AI 생성 지시</button>
+            <div className="timeline-top-bar" style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', marginBottom: '24px', alignItems: 'center' }}>
+                <form onSubmit={handleAiSubmit} style={{ flex: 1, minWidth: '280px', display: 'flex', gap: '10px' }}>
+                    <input 
+                        type="text" 
+                        placeholder="AI에게 지시하기 (예: '금요일 오후 3시에 미팅 추가')" 
+                        value={aiMessage} 
+                        onChange={(e) => setAiMessage(e.target.value)} 
+                        required 
+                        disabled={aiLoading}
+                        style={{ flex: 1, padding: '12px 16px', borderRadius: '12px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-brown)', fontSize: '14px', outline: 'none' }} 
+                    />
+                    <button type="submit" className="btn-ai-submit" disabled={aiLoading}>
+                        {aiLoading ? 'AI 처리 중...' : 'AI 생성 지시'}
+                    </button>
                 </form>
-                <button className="btn-add-regular" onClick={() => { setNewEvent({ title: '', date: dayIdxToDateStr(new Date().getDay()), startTime: '09:00', endTime: '10:00', category: '기타' }); setAddModalOpen(true); }}>+ 일반 일정 추가</button>
+                <button className="btn-add-regular" style={{ whiteSpace: 'nowrap' }} onClick={() => { setNewEvent({ title: '', date: dayIdxToDateStr(new Date().getDay()), startTime: '09:00', endTime: '10:00', category: '기타' }); setAddModalOpen(true); }}>+ 일반 일정 추가</button>
             </div>
 
-            <div className="dashboard-content-flex" style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
-                <div className="white-card white-card-scroll" style={{ flex: 1, padding: '20px' }}>
-                    <div className="timetable">
-                        <div className="time-col">
+            <div className="dashboard-content-flex" style={{ display: 'flex', flexDirection: windowWidth <= 1200 ? 'column' : 'row', gap: '24px', alignItems: 'flex-start' }}>
+                <div className="white-card white-card-scroll" style={{ flex: 1, width: '100%', padding: '20px', boxSizing: 'border-box', overflowX: 'hidden', order: windowWidth <= 1200 ? 2 : 1 }}>
+                    <div className="timetable" style={{ display: 'flex', width: '100%' }}>
+                        
+                        <div className="time-col" style={{ flexShrink: 0 }}>
                             <div className="time-header"></div>
                             {Array.from({ length: hours }).map((_, i) => <div key={i} className="time-slot">{String(startH + i).padStart(2, '0')}:00</div>)}
                         </div>
 
-                        {dayMap.map((dayIdx, idx) => {
-                            const isToday = new Date().getDay() === dayIdx; const dateStr = dayIdxToDateStr(dayIdx);
+                        {displayDates.map((dateObj, idx) => {
+                            const dateStr = formatDateStr(dateObj);
+                            const jsDay = dateObj.getDay();
+                            const dbDay = jsDay === 0 ? 6 : jsDay - 1;
+                            const isToday = dateStr === formatDateStr(new Date());
+
+                            const headerText = dayLabels[dbDay];
+
                             return (
-                                <div key={dayIdx} className={`day-col ${isToday ? 'is-today' : ''}`}>
-                                    <div className="day-header">{dayLabels[idx]}</div>
-                                    <div className="day-grid" style={{ height: `${hours * PX_PER_HOUR}px` }} onClick={(e) => handleGridClick(e, dayIdx, idx)}>
+                                <div key={dateStr} className={`day-col ${isToday ? 'is-today' : ''}`} style={{ flex: 1, minWidth: 0 }}>
+                                    <div className="day-header">{headerText}</div>
+                                    <div className="day-grid" style={{ height: `${hours * PX_PER_HOUR}px` }} onClick={(e) => handleGridClick(e, dateStr, idx)}>
                                         {scheduleList.filter(s => s.date === dateStr).map((s) => {
                                             const { top, height } = getPos(s.startTime, s.endTime);
                                             return (
-                                                <div key={s.id} className={`timetable-event ${categoryColors[s.category] || 'bg-pastel-green'} ${s.isCompleted ? 'is-completed' : ''}`} style={{ top, height, opacity: draggingId === s.id ? 0.2 : 0.85 }} onMouseDown={(e) => handleDragStart(e, s, idx, dayIdx)} onClick={(e) => { e.stopPropagation(); setSelectedEvent({ id: s.id, title: s.title, date: s.date, startTime: s.startTime.substring(0, 5), endTime: s.endTime ? s.endTime.substring(0, 5) : '', category: s.category || '기타', isCompleted: s.isCompleted || false }); setModalOpen(true); }}>
+                                                <div key={s.id} className={`timetable-event ${categoryColors[s.category] || 'bg-pastel-green'} ${s.isCompleted ? 'is-completed' : ''}`} style={{ top, height, opacity: draggingId === s.id ? 0.2 : 0.85 }} onMouseDown={(e) => handleDragStart(e, s, idx)} onClick={(e) => { e.stopPropagation(); setSelectedEvent({ id: s.id, title: s.title, date: s.date, startTime: s.startTime.substring(0, 5), endTime: s.endTime ? s.endTime.substring(0, 5) : '', category: s.category || '기타', isCompleted: s.isCompleted || false }); setModalOpen(true); }}>
                                                     <span style={{ fontSize: '10px', opacity: 0.7 }}>{s.startTime.substring(0,5)}</span>{s.title}
                                                     <div className="resize-handle" onMouseDown={(e) => handleResizeStart(e, s)} />
                                                 </div>
                                             );
                                         })}
-                                        {fixedList.filter(f => f.dayOfWeek === (dayIdx === 0 ? 6 : dayIdx - 1) && !(f.startDate && f.startDate > dateStr) && !(f.endDate && f.endDate < dateStr) && !skippedFixedKeys.includes(`${f.id}-${dateStr}`)).map((f) => {
+                                        {fixedList.filter(f => f.dayOfWeek === dbDay && !(f.startDate && f.startDate > dateStr) && !(f.endDate && f.endDate < dateStr) && !skippedFixedKeys.includes(`${f.id}-${dateStr}`)).map((f) => {
                                             const { top, height } = getPos(f.startTime, f.endTime);
                                             return (
                                                 <div key={f.id} className={`timetable-event fixed-event ${categoryColors[f.category] || 'bg-pastel-yellow'} ${completedFixedKeys.includes(`${f.id}-${dateStr}`) ? 'is-completed' : ''}`} style={{ top, height }} onClick={(e) => { e.stopPropagation(); setSelectedFixedCheck({ id: f.id, title: f.title, date: dateStr }); setFixedCheckModalOpen(true); }}>📌 {f.title}</div>
@@ -288,8 +352,8 @@ function Timeline() {
                     </div>
                 </div>
 
-                <div className="timeline-side-widgets" style={{ width: '280px', display: 'flex', flexDirection: 'column', gap: '20px', flexShrink: 0 }}>
-                    <div className="white-card" style={{ padding: '20px' }}>
+                <div className="timeline-side-widgets" style={{ width: windowWidth <= 1200 ? '100%' : '280px', display: 'flex', flexDirection: windowWidth <= 1200 ? 'row' : 'column', flexWrap: 'wrap', gap: '20px', flexShrink: 0, order: windowWidth <= 1200 ? 1 : 2 }}>
+                    <div className="white-card" style={{ flex: 1, minWidth: '260px', padding: '20px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                             <h3 style={{ fontSize: '14px', fontWeight: 'bold', margin: 0, color: 'var(--text-brown)' }}>주요 D-Day 일정</h3>
                             <button onClick={() => setDdayModalOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--point-gold)', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>+ 지정하기</button>
@@ -304,7 +368,7 @@ function Timeline() {
                         </div>
                     </div>
 
-                    <div className="white-card" style={{ padding: '20px' }}>
+                    <div className="white-card" style={{ flex: 1, minWidth: '260px', padding: '20px' }}>
                         <button className="btn-fixed-add-toggle" onClick={() => setIsFixedFormOpen(!isFixedFormOpen)}>{isFixedFormOpen ? '루틴 설정창 접기' : '고정 반복 루틴 설정'}</button>
                         {isFixedFormOpen && (
                             <form onSubmit={handleAddFixed} className="quick-modal-form" style={{ marginTop: '14px' }}>
@@ -317,7 +381,6 @@ function Timeline() {
                                 <div className="form-row">
                                     <div className="form-group" style={{ flex: 1 }}>
                                         <label>시작일(선택)</label>
-                                        {/* ✨ 버그 픽스: 모달 외부에 깔끔하게 띄우기 위한 withPortal 추가 */}
                                         <DatePicker 
                                             selected={newFixedDates.startDate} 
                                             onChange={(date) => setNewFixedDates({...newFixedDates, startDate: date})} 
@@ -329,7 +392,6 @@ function Timeline() {
                                     </div>
                                     <div className="form-group" style={{ flex: 1 }}>
                                         <label>종료일(선택)</label>
-                                        {/* ✨ 버그 픽스: 모달 외부에 깔끔하게 띄우기 위한 withPortal 추가 */}
                                         <DatePicker 
                                             selected={newFixedDates.endDate} 
                                             onChange={(date) => setNewFixedDates({...newFixedDates, endDate: date})} 
@@ -362,7 +424,6 @@ function Timeline() {
                             </div>
                             <div className="form-group">
                                 <label>목표 기준 날짜</label>
-                                {/* ✨ 버그 픽스: 모달 외부에 깔끔하게 띄우기 위한 withPortal 추가 */}
                                 <DatePicker 
                                     selected={newDday.date ? new Date(newDday.date) : null} 
                                     onChange={(date) => setNewDday({ ...newDday, date: formatDateStr(date) })} 
@@ -404,7 +465,7 @@ function Timeline() {
             {fixedModalOpen && (
                 <div className="modal-overlay show">
                     <div className="modal-content">
-                        <h3>📌 고정 루틴 수정</h3>
+                        <h3>고정 루틴 수정</h3>
                         <form onSubmit={handleUpdateFixed} className="quick-modal-form">
                             <div className="form-group">
                                 <label>이름</label>
@@ -429,7 +490,6 @@ function Timeline() {
                             <div className="form-row">
                                 <div className="form-group" style={{flex:1}}>
                                     <label>시작일</label>
-                                    {/* ✨ 버그 픽스: 모달 외부에 깔끔하게 띄우기 위한 withPortal 추가 */}
                                     <DatePicker 
                                         selected={selectedFixed.startDate ? new Date(selectedFixed.startDate) : null} 
                                         onChange={(date) => setSelectedFixed({...selectedFixed, startDate: formatDateStr(date)})} 
@@ -441,7 +501,6 @@ function Timeline() {
                                 </div>
                                 <div className="form-group" style={{flex:1}}>
                                     <label>종료일</label>
-                                    {/* ✨ 버그 픽스: 모달 외부에 깔끔하게 띄우기 위한 withPortal 추가 */}
                                     <DatePicker 
                                         selected={selectedFixed.endDate ? new Date(selectedFixed.endDate) : null} 
                                         onChange={(date) => setSelectedFixed({...selectedFixed, endDate: formatDateStr(date)})} 

@@ -34,7 +34,7 @@ function Dashboard() {
                     weekDates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
                 }
 
-                const regular = diaryData.weekSchedules.map(s => ({ 
+                const regular = (diaryData.weekSchedules || []).map(s => ({ 
                     ...s, 
                     isFixed: false, 
                     isCompleted: s.isCompleted || false 

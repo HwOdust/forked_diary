@@ -10,11 +10,11 @@ function MyPage({ setTheme }) {
     const navigate = useNavigate();
 
     const categoryColors = {
-        '회의': '#60A5FA', 
-        '공부': '#4ADE80', 
-        '약속': '#FB923C', 
-        '운동': '#C084FC', 
-        '기타': '#FACC15'  
+        '회의': '#60A5FA',
+        '공부': '#4ADE80',
+        '약속': '#FB923C',
+        '운동': '#C084FC',
+        '기타': '#FACC15'
     };
 
     const loadUserData = () => {
@@ -104,13 +104,9 @@ function MyPage({ setTheme }) {
                 </div>
             </div>
 
-            {/* 하단 2단 레이아웃 스플릿 스크린 */}
             <div className="dashboard-content-flex" style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
-                
-                {/* 왼쪽 컬럼 팩 */}
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    
-                    {/* 나의 기록 대시보드 위젯 */}
+                    {/* 기록 대시보드 */}
                     <div className="white-card" style={{ textAlign: 'left' }}>
                         <h3 style={{ fontSize: '15px', fontWeight: 'bold', marginBottom: '16px', color: 'var(--text-brown)' }}>나의 기록</h3>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -125,33 +121,11 @@ function MyPage({ setTheme }) {
                         </div>
                     </div>
 
-                    {/* AI 비서 제안 설정 조정판 */}
+                    {/* 라이트모드 다크모드 설정*/}
                     <div className="white-card" style={{ textAlign: 'left' }}>
-                        <h3 style={{ fontSize: '15px', fontWeight: 'bold', marginBottom: '16px', color: 'var(--text-brown)' }}>AI 비서 제안 설정</h3>
+                        <h3 style={{ fontSize: '15px', fontWeight: 'bold', marginBottom: '16px', color: 'var(--text-brown)' }}>화면 테마 설정</h3>
                         
-                        {/* 관심 키워드 태그 해시 컴포넌트 */}
-                        <div style={{ marginBottom: '16px' }}>
-                            <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-light)' }}>관심 키워드</label>
-                            <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
-                                <span style={{ background: '#E0F2FE', color: '#0369A1', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}># 회의</span>
-                                <span style={{ background: '#DCFCE7', color: '#15803D', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}># 프로젝트</span>
-                            </div>
-                        </div>
-
                         <div className="quick-modal-form" style={{ gap: '14px' }}>
-                            <div className="form-group">
-                                <label>AI 추천 빈도</label>
-                                <select className="dark-target-input" style={{ background: 'var(--bg-body)', color: 'var(--text-brown)', border: '1px solid var(--border-color)' }}>
-                                    <option>주 2회 추천 알림</option>
-                                    <option>매일 상시 요약 브리핑</option>
-                                </select>
-                            </div>
-                            <div className="form-group">
-                                <label>AI 추천 인식 시간대</label>
-                                <select className="dark-target-input" value={info.defaultCategory || '기타'} onChange={(e) => handleSettingChange('defaultCategory', e.target.value)} style={{ background: 'var(--bg-body)', color: 'var(--text-brown)', border: '1px solid var(--border-color)' }}>
-                                    {['회의', '공부', '약속', '운동', '기타'].map(v => <option key={v} value={v}>기본 시간 모드 ({v} 우선순위)</option>)}
-                                </select>
-                            </div>
                             <div className="form-group">
                                 <label>서비스 인터페이스 테마</label>
                                 <div style={{ display: 'flex', gap: '10px', marginTop: '2px' }}>
@@ -165,7 +139,7 @@ function MyPage({ setTheme }) {
 
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     
-                    {/* 가운데 뻥뚫린 원형 차트 */}
+                    {/* 카테고리 분석 통계 (도넛모양 차트?) */}
                     <div className="white-card" style={{ textAlign: 'left' }}>
                         <h3 style={{ fontSize: '15px', fontWeight: 'bold', marginBottom: '16px', color: 'var(--text-brown)' }}>📊 카테고리별 분석 통계</h3>
                         

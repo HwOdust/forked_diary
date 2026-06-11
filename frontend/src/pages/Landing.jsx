@@ -7,19 +7,22 @@ function Landing() {
     const [newAuthor, setNewAuthor] = useState('');
     const [newMessage, setNewMessage] = useState('');
 
-    // 사용 후기 DB에서 불러오기
     const loadMessages = async () => {
         try {
             const res = await fetch('http://localhost:8080/api/guestbook');
             if (res.ok) {
                 const data = await res.json();
-                setMessages(data);
+                if (Array.isArray(data)) {
+                    setMessages(data);
+                } else {
+                    setMessages([]); 
+                }
             }
         } catch (err) {
-            console.error('사용 후기를 불러오는 중 오류 발생:', err);
-        }
+        console.error('사용 후기를 불러오는 중 오류 발생:', err);
+        setMessages([]); 
+       }
     };
-
     useEffect(() => {
         loadMessages();
     }, []);
@@ -85,7 +88,7 @@ function Landing() {
             }}>
                 <h2 style={{ fontSize: '46px', fontWeight: '900', marginBottom: '20px', lineHeight: '1.3', color: '#ffffff' }}>
                     당신의 완벽한 하루를 위한<br/>
-                    <span style={{ color: 'var(--point-gold)' }}>AI 일정 비서, YAHO</span>
+                    <span style={{ color: 'var(--point-gold)' }}>일정 관리 사이트, YAHO</span>
                 </h2>
                 <p style={{ fontSize: '18px', color: '#dddddd', marginBottom: '50px', fontWeight: '500' }}>
                     자연어로 일정을 지시하고, 타임라인으로 하루를 한눈에 관리하세요.
@@ -105,7 +108,7 @@ function Landing() {
                 <h3 style={{ textAlign: 'center', fontSize: '26px', fontWeight: '800', marginBottom: '40px' }}>주요 기능</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
                     <div className="white-card" style={{ textAlign: 'center', padding: '40px 30px' }}>
-                        <h4 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '16px', color: 'var(--point-gold)' }}>AI 비서 챗봇</h4>
+                        <h4 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '16px', color: 'var(--point-gold)' }}>AI 스케줄러 챗봇</h4>
                         <p style={{ fontSize: '14px', color: 'var(--text-light)', lineHeight: '1.6' }}>"내일 오후 3시 회의 잡아줘" 한 마디면 일정이 자동 생성 및 제안됩니다.</p>
                     </div>
                     <div className="white-card" style={{ textAlign: 'center', padding: '40px 30px' }}>
